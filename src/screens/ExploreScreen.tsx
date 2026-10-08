@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { Logo } from '@/components/Logo'
 import { FloatingNav } from '@/components/FloatingNav'
+import { Logo } from '@/components/Logo'
 import { CATEGORY_DATA } from '@/data/discover-data'
 import type { ServiceItem } from '@/screens/DiscoverScreen'
+import MaterialIcons from '@expo/vector-icons/MaterialIcons'
+import { useMemo, useState } from 'react'
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 
 type Category = {
   id: string
@@ -49,6 +49,8 @@ export function ExploreScreen({
   onSelectCategory,
   onSelectBusiness,
   onNavigate,
+  onLogout,
+  onOpenDocuments,
 }: {
   name?: string
   topInset?: number
@@ -56,6 +58,8 @@ export function ExploreScreen({
   onSelectCategory: (category: Category) => void
   onSelectBusiness: (item: SearchResult) => void
   onNavigate: (key: string) => void
+  onLogout?: () => void
+  onOpenDocuments?: () => void
 }) {
   const greeting = name ? `Bem-vindo(a), ${name}` : 'Bem-vindo(a) de volta'
   const [query, setQuery] = useState('')
@@ -75,7 +79,23 @@ export function ExploreScreen({
       contentContainerStyle={{ paddingTop: topInset + 20, paddingBottom: bottomInset + 100 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Logo size="sm" style={{ width: 80, height: 24, marginLeft: 28, marginBottom: 20 }} />
+      <View className="flex-row items-center justify-between px-7 mb-5">
+        <Logo size="sm" style={{ width: 80, height: 24 }} />
+        <View className="flex-row items-center gap-4">
+          {onOpenDocuments ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Meus documentos"
+                       onPress={onOpenDocuments} hitSlop={8} className="active:opacity-60">
+              <MaterialIcons name="folder" size={24} color="#11375C" />
+            </Pressable>
+          ) : null}
+          {onLogout ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Sair"
+                       onPress={onLogout} hitSlop={8} className="active:opacity-60">
+              <MaterialIcons name="logout" size={22} color="#11375C" />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
       <View className="px-6">
         {/* Card de boas-vindas com busca funcional */}
         <View className="rounded-2xl bg-navy p-5 mb-7">
