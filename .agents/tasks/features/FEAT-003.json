@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Favorites persistence verification/finalization in Firestore per user. The favorites service (favorites.ts) and the optimistic per-id toggle + session load were implemented in FEAT-001/FEAT-002; this feature confirms the end-to-end wiring is complete and that DiscoverScreen and BusinessScreen stay in sync through the shared context Set with no screen-level API change. It is small by design because the context already owns the surface. Depends on FEAT-002.",
+  "status": "completed",
+  "steps": [
+    "Confirm src/state/account-context.tsx loads favorites via favorites.listFavorites(account.uid) into the Set on session start (inside the observeAuth handler, isolated try/catch -> empty Set on failure) and that toggleFavorite performs the optimistic per-id flip with per-id rollback on add/removeFavorite rejection, guarded no-op when account is null (FR-F1/F3/F4).",
+    "Confirm src/screens/DiscoverScreen.tsx and src/screens/BusinessScreen.tsx still consume const { isFavorite, toggleFavorite } = useAccount() unchanged (no API change needed per FR-F2/AC-10); do NOT modify their favorites usage. If FEAT-002 left any mismatch (e.g. toggleFavorite signature drift), fix it here.",
+    "If anything about the favorites load or toggle is missing or inconsistent after FEAT-002, implement the correction in account-context.tsx and/or favorites.ts; otherwise make no code change and record that the wiring was already complete in findings.",
+    "Run `npx tsc --noEmit` and `npx expo lint` and fix any errors."
+  ],
+  "acceptance_criteria": [
+    "Favoriting a business in DiscoverScreen or BusinessScreen updates the UI immediately (optimistic) and the context persists it under users/{uid}/favorites via favorites.ts (AC-11).",
+    "The same favorite state is consistent between DiscoverScreen and BusinessScreen because both read the one context Set (AC-12).",
+    "Favorites are loaded on session start so reopening with the same account restores them (AC-13); a failed favorite write reverts only that id's optimistic state (AC-14).",
+    "DiscoverScreen and BusinessScreen have no favorites-API changes vs. the pre-wave contract (FR-F2/AC-10).",
+    "`npx tsc --noEmit` and `npx expo lint` both pass (AC-30)."
+  ],
+  "verification": [
+    "Run `npx tsc --noEmit` from the worktree root and confirm zero errors.",
+    "Run `npx expo lint` from the worktree root and confirm zero errors.",
+    "Confirm (read DiscoverScreen.tsx + BusinessScreen.tsx) their useAccount favorites destructuring is unchanged and account-context.tsx loads + toggles favorites via favorites.ts."
+  ],
+  "blocked_reason": null,
+  "findings": "No code change required; the favorites wiring was already complete and correct after FEAT-001/FEAT-002. Verified against design.md 'Favorites migration'. (1) src/services/firebase/favorites.ts exposes listFavorites(uid) -> doc ids, addFavorite(uid, businessId) -> setDoc({ businessId, createdAt: serverTimestamp() }), removeFavorite(uid, businessId) -> deleteDoc, matching the design signatures. (2) src/state/account-context.tsx loads favorites via favorites.listFavorites(user.uid) into the Set on session start inside the observeAuth handler, wrapped in an isolated try/catch that falls back to an empty Set on failure (FR-F4/AC-13). (3) toggleFavorite performs the optimistic per-id flip (reading favoritesRef.current for the pre-toggle state), with per-id rollback on add/removeFavorite rejection, and is a guarded no-op when account is null (FR-F1/F3/F4, AC-11/AC-14). (4) DiscoverScreen.tsx and BusinessScreen.tsx both consume const { isFavorite, toggleFavorite } = useAccount() unchanged (fav = isFavorite(item.id); onPress toggleFavorite(item.id)); consistency between the two screens is automatic via the shared context Set (FR-F2/AC-10/AC-12). Verification: `npx tsc --noEmit` -> 0 errors; `npx expo lint` -> 0 errors (1 pre-existing exhaustive-deps warning in DiscoverScreen about translateY, unrelated to favorites and out of scope). Note per context.json: tsc/lint passing does not prove Firestore runtime read/write correctness; favorites persistence must be smoke-tested manually in Expo Go."
+}
