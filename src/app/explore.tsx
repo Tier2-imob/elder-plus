@@ -17,7 +17,10 @@ export default function Explore() {
       onLogout={async () => {
         await signOut()
       }}
-      onOpenDocuments={() => router.push('/documents')}
+      // Entrada de Documentos (Firebase Storage) oculta por ora: o Storage não
+      // foi ativado no console e o plano de uso dos documentos ainda vai amadurecer.
+      // Para reativar, descomente a linha abaixo (a tela/rota/service já existem).
+      // onOpenDocuments={() => router.push('/documents')}
       onSelectCategory={(category) =>
         router.push({
           pathname: '/discover',
