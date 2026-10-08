@@ -1,0 +1,7 @@
+{
+  "task_id": "task-firebase-wave1",
+  "task_description": "Firebase Wave 1 for the Elder Expo/React Native app: introduce a src/services/firebase service layer (config + auth/users/favorites/reviews/tasks/files + types), rewrite AccountContext over Firebase Auth with a root splash/loading gate, add real signup (email+password) and a login route, migrate favorites/reviews/tasks to Firestore and documents to Storage, add deps via expo install and the expo-image-picker plugin, and copy the Kiro spec into the branch marking the prototype->Firebase-product shift. Implemented from the approved Revision 4 design in .agents/tasks/design.md; scope fixed by .agents/tasks/requirements.md. Stays Expo Go compatible; no FCM/notifications, no dev build, no test framework, no palette/font changes, catalog stays a local seed.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005", "FEAT-006"],
+  "blocked_reason": null
+}

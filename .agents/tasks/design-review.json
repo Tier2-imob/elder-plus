@@ -1,0 +1,33 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "id": "NIT-1",
+      "severity": "NIT",
+      "title": "Context signUp returns Promise<void> while auth.ts signUp returns Promise<User>",
+      "where": "## AccountContext refactor (context value type) vs. ### users.ts and auth.ts — module surfaces",
+      "problem": "Two different signUp functions with different return types are never explicitly contrasted in one place, so a hurried reader could mistake one for a typo.",
+      "fix": "Add one clause where the context delegates: the context's signUp returns Promise<void> and ignores the User returned by auth.signUp because onAuthStateChanged populates account."
+    },
+    {
+      "id": "NIT-2",
+      "severity": "NIT",
+      "title": "Firestore modular imports for listReviews ordering implied but not named",
+      "where": "## Reviews migration",
+      "problem": "The exact modular imports (collection, query, orderBy, getDocs, addDoc, serverTimestamp) are left to inference. This matches the abstraction level of favorites.ts/tasks.ts, so it is uniform and acceptable, not a reviews-specific gap.",
+      "fix": "Optional: list 'collection, query, orderBy, getDocs, addDoc, serverTimestamp from firebase/firestore' for parity with the explicit auth import guidance; confirm paths against the installed SDK per NFR-7."
+    }
+  ],
+  "priorFindings": [
+    { "id": "HIGH-1", "status": "RESOLVED", "note": "users.ts/auth.ts signature blocks + UserProfile DTO + explicit context->auth.ts layering; handler/invariant sections updated and consistent." },
+    { "id": "MEDIUM-2", "status": "RESOLVED", "note": "customConditions downgraded to unverified expectation; tsc --noEmit install-time gate; AsyncStorage adapter is catch-all fallback for any resolution failure." },
+    { "id": "MEDIUM-3", "status": "RESOLVED", "note": "auth.signUp awaits deleteUser/firebaseSignOut cleanup before rejecting; single PT message; onAuthStateChanged race resolved; error table updated." },
+    { "id": "MEDIUM-4", "status": "RESOLVED", "note": "WeekView new {tasks,done,onDone} signature + tasks.filter + call site, matching actual CareScreen.tsx source." },
+    { "id": "NIT-5", "status": "RESOLVED", "note": "segments[0] ?? 'index' fallback documented as deliberate for root route." },
+    { "id": "NIT-6", "status": "RESOLVED", "note": ".env.example empty-value trap documented; ?? triggers only on undefined." },
+    { "id": "NIT-7", "status": "RESOLVED", "note": "apiKey/storageBucket/messagingSenderId/appId marked MUST-fill-before-first-run as an ordered step." },
+    { "id": "NIT-8", "status": "RESOLVED", "note": "header row vertical footprint confirmed = former marginBottom 20 (mb-5), no extra py padding; NFR-4 intact." }
+  ],
+  "counts": { "HIGH": 0, "MEDIUM": 0, "NIT": 2 },
+  "reviewDoc": "c:\\Users\\savio\\OneDrive\\Tier2\\Elder\\elder\\.worktrees\\firebase-core\\.agents\\tasks/design-review.md"
+}
