@@ -1,16 +1,10 @@
+import type { ServiceItem } from '@/screens/DiscoverScreen'
+import { useAccount } from '@/state/account-context'
+import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { useAccount } from '@/state/account-context'
-import type { ServiceItem } from '@/screens/DiscoverScreen'
 
 type Review = { id: string; author: string; rating: number; comment: string }
-
-const INITIAL_REVIEWS: Review[] = [
-  { id: 'r1', author: 'Maria Helena',  rating: 5, comment: 'Atendimento excelente, muito cuidadosos com os pacientes.' },
-  { id: 'r2', author: 'José Augusto',  rating: 4, comment: 'Ótima estrutura e profissionais dedicados.' },
-  { id: 'r3', author: 'Tereza Campos', rating: 5, comment: 'Me senti muito bem acolhida desde a primeira consulta.' },
-]
 
 function StarRow({ value, onChange, size = 22 }: { value: number; onChange?: (v: number) => void; size?: number }) {
   return (
@@ -51,28 +45,39 @@ export function BusinessScreen({
   item,
   onBack,
   topInset = 0,
+  reviews,
+  reviewsLoading = false,
+  submitting = false,
+  onSubmitReview,
 }: {
   item: ServiceItem
   onBack: () => void
   topInset?: number
+  reviews: Review[]
+  reviewsLoading?: boolean
+  submitting?: boolean
+  onSubmitReview: (rating: number, comment: string) => Promise<void>
 }) {
   const { isFavorite, toggleFavorite } = useAccount()
   const fav = isFavorite(item.id)
 
-  const [reviews, setReviews] = useState<Review[]>(INITIAL_REVIEWS)
   const [newRating, setNewRating] = useState(0)
   const [newComment, setNewComment] = useState('')
 
-  const avgRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
+  const avgRating = reviews.length
+    ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
+    : 0
 
-  function submitReview() {
-    if (newRating === 0 || newComment.trim().length === 0) return
-    setReviews((prev) => [
-      { id: `r${Date.now()}`, author: 'Você', rating: newRating, comment: newComment.trim() },
-      ...prev,
-    ])
-    setNewRating(0)
-    setNewComment('')
+  async function submitReview() {
+    if (newRating === 0 || newComment.trim().length === 0 || submitting) return
+    try {
+      await onSubmitReview(newRating, newComment.trim())
+      // clear only after a successful write
+      setNewRating(0)
+      setNewComment('')
+    } catch {
+      // keep inputs; the wrapper owns the errorMessage shown under the form
+    }
   }
 
   const distanceLabel =
@@ -152,9 +157,11 @@ export function BusinessScreen({
         <Text className="font-hanken-bold text-navy text-base mb-4">
           Avaliações ({reviews.length})
         </Text>
-        {reviews.map((review) => (
-          <ReviewCard key={review.id} review={review} />
-        ))}
+        {reviewsLoading && reviews.length === 0 ? (
+          <Text className="font-hanken text-muted text-[13px] leading-5 mb-3">Carregando avaliações…</Text>
+        ) : (
+          reviews.map((review) => <ReviewCard key={review.id} review={review} />)
+        )}
 
         {/* Divider */}
         <View className="border-t border-hairline mt-2 mb-5" />
@@ -186,14 +193,15 @@ export function BusinessScreen({
           accessibilityRole="button"
           accessibilityLabel="Enviar avaliação"
           onPress={submitReview}
+          disabled={newRating === 0 || newComment.trim().length === 0 || submitting}
           className="min-h-[52px] rounded-2xl items-center justify-center active:opacity-90"
-          style={{ backgroundColor: newRating > 0 && newComment.trim().length > 0 ? '#11375C' : '#E4DCD3' }}
+          style={{ backgroundColor: newRating > 0 && newComment.trim().length > 0 && !submitting ? '#11375C' : '#E4DCD3' }}
         >
           <Text
             className="font-hanken-bold text-base"
-            style={{ color: newRating > 0 && newComment.trim().length > 0 ? '#FFFFFF' : '#6B7A85' }}
+            style={{ color: newRating > 0 && newComment.trim().length > 0 && !submitting ? '#FFFFFF' : '#6B7A85' }}
           >
-            Enviar avaliação
+            {submitting ? 'Enviando…' : 'Enviar avaliação'}
           </Text>
         </Pressable>
       </ScrollView>
