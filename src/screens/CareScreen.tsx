@@ -1,8 +1,8 @@
+import { FloatingNav } from '@/components/FloatingNav'
+import { Logo } from '@/components/Logo'
+import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { Logo } from '@/components/Logo'
-import { FloatingNav } from '@/components/FloatingNav'
 
 type WeekDay = {
   key: string
@@ -31,25 +31,6 @@ type Task = {
   day: string
   icon: keyof typeof MaterialIcons.glyphMap
 }
-
-const TASKS: Task[] = [
-  {
-    id: 't1',
-    dayKey: 'wed',
-    title: 'Consulta cardiologista',
-    time: '09:30',
-    day: 'Quarta-feira, 14',
-    icon: 'favorite-border',
-  },
-  {
-    id: 't2',
-    dayKey: 'wed',
-    title: 'Tomar medicação — Losartana',
-    time: '12:00',
-    day: 'Quarta-feira, 14',
-    icon: 'medication',
-  },
-]
 
 // ─── Card de tarefa ────────────────────────────────────────────────────────────
 
@@ -190,16 +171,18 @@ function TodayView({
 // ─── View: Semana ──────────────────────────────────────────────────────────────
 
 function WeekView({
+  tasks,
   done,
   onDone,
 }: {
+  tasks: Task[]
   done: Set<string>
   onDone: (id: string) => void
 }) {
   return (
     <View>
       {WEEK_DAYS.map((day) => {
-        const dayTasks = TASKS.filter((t) => t.dayKey === day.key)
+        const dayTasks = tasks.filter((t) => t.dayKey === day.key)
         const isToday  = day.key === TODAY_KEY
 
         return (
@@ -260,21 +243,24 @@ type CareView = 'today' | 'week'
 
 export function CareScreen({
   onNavigate,
+  tasks,
+  doneIds,
+  tasksLoading = false,
+  onComplete,
   topInset = 0,
   bottomInset = 0,
 }: {
   onNavigate: (key: string) => void
+  tasks: Task[]
+  doneIds: Set<string>
+  tasksLoading?: boolean
+  onComplete: (taskId: string) => void
   topInset?: number
   bottomInset?: number
 }) {
   const [view, setView]   = useState<CareView>('today')
-  const [done, setDone]   = useState<Set<string>>(new Set())
 
-  const todayTasks = TASKS.filter((t) => t.dayKey === TODAY_KEY)
-
-  function markDone(id: string) {
-    setDone((prev) => { const next = new Set(prev); next.add(id); return next })
-  }
+  const todayTasks = tasks.filter((t) => t.dayKey === TODAY_KEY)
 
   return (
     <View className="flex-1 bg-offwhite">
@@ -322,10 +308,14 @@ export function CareScreen({
           paddingBottom: bottomInset + 100,
         }}
       >
-        {view === 'today' ? (
-          <TodayView tasks={todayTasks} done={done} onDone={markDone} />
+        {tasksLoading && tasks.length === 0 ? (
+          <Text className="font-hanken text-muted text-sm px-1 py-4">
+            Carregando tarefas…
+          </Text>
+        ) : view === 'today' ? (
+          <TodayView tasks={todayTasks} done={doneIds} onDone={onComplete} />
         ) : (
-          <WeekView done={done} onDone={markDone} />
+          <WeekView tasks={tasks} done={doneIds} onDone={onComplete} />
         )}
       </ScrollView>
 

@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-005",
+  "type": "feat",
+  "description": "Migrate care tasks from the in-screen TASKS constant + local done Set to Firestore per user (users/{uid}/tasks), seeding on first load. Add the useCareTasks hook, convert CareScreen to receive tasks/doneIds via props with onComplete, change WeekView's signature to take the task list as a prop, and wire the care.tsx wrapper. tasks.ts exists from FEAT-001. Depends on FEAT-002 (needs account.uid). Independent of FEAT-003/004/006.",
+  "status": "completed",
+  "steps": [
+    "Create src/hooks/useCareTasks.ts (outside src/app): on mount call tasks.listTasks(uid); if empty, call tasks.seedTasks(uid, SEED) where SEED is the current CareScreen TASKS array moved into the hook (carrying the exact glyph strings 'favorite-border' for t1 and 'medication' for t2, plus an `order`), then use the seeded result. Guard seeding behind a 'seed attempted this session' ref. Expose { tasks, doneIds, tasksLoading, complete } where doneIds is derived from tasks where done===true, and complete(taskId) persists via tasks.completeTask, optimistically adds the id to doneIds, and reverts on failure. Map TaskDoc -> the screen Task casting icon as keyof typeof MaterialIcons.glyphMap (sound because the seed persists real glyph names).",
+    "Edit src/screens/CareScreen.tsx: remove the module-level TASKS constant, the local const [done,setDone]=useState and markDone. Keep WEEK_DAYS, TODAY_KEY, the Task type, TaskCard, EmptyDay, TodayView, and the Hoje/Semana toggle. Add props tasks: Task[], doneIds: Set<string>, tasksLoading?: boolean, onComplete: (taskId:string)=>void. Derive todayTasks = tasks.filter(dayKey===TODAY_KEY). Pass doneIds/onComplete where done/markDone were used.",
+    "Edit the WeekView helper in CareScreen.tsx to the new signature ({ tasks: Task[]; done: Set<string>; onDone: (id:string)=>void }) and change its internal TASKS.filter(...) to tasks.filter(...); update the call site to <WeekView tasks={tasks} done={doneIds} onDone={onComplete} /> (full list to WeekView; today-only to TodayView). This is required so removing module TASKS still compiles (AC-30).",
+    "Edit src/app/care.tsx: call useCareTasks(account.uid) (get uid via useAccount) and pass tasks, doneIds, tasksLoading, onComplete=complete to CareScreen; keep the existing onNavigate behavior.",
+    "Run `npx tsc --noEmit` and `npx expo lint` and fix any errors."
+  ],
+  "acceptance_criteria": [
+    "CareScreen loads the user's tasks from Firestore and shows the Hoje and Semana views with the same layout (AC-18).",
+    "Marking Concluir persists done:true in Firestore and the completion UX stays irreversible (disabled after done, green check, strike-through title, card remains) (AC-19).",
+    "A user with no stored tasks is seeded with the initial tasks on first access, idempotently via fixed seed ids (AC-20).",
+    "The module-level TASKS and local done/markDone are removed from the screen; WeekView filters a tasks prop and the code compiles (AC-30).",
+    "`npx tsc --noEmit` and `npx expo lint` both pass (AC-30)."
+  ],
+  "verification": [
+    "Run `npx tsc --noEmit` from the worktree root and confirm zero errors.",
+    "Run `npx expo lint` from the worktree root and confirm zero errors.",
+    "Confirm (read CareScreen.tsx) module TASKS/local done/markDone are gone, WeekView takes a tasks prop, and tasks/doneIds/onComplete are props."
+  ],
+  "blocked_reason": null,
+  "findings": "Implemented. Created src/hooks/useCareTasks.ts: on mount listTasks(uid); seeds via seedTasks(uid, SEED) only when empty, guarded by a per-session seededRef (reset per uid inside the effect). SEED carries fixed ids t1/t2 via seedTasks' t{index+1} scheme with exact glyphs 'favorite-border' (order 0) and 'medication' (order 1). Exposes { tasks, doneIds, tasksLoading, complete }; doneIds derived from docs where done===true; complete() optimistically sets done then reverts the single doc on failure. TaskDoc->Task maps icon via `as keyof typeof MaterialIcons.glyphMap` (sound per design: seed persists real glyph names). CareScreen.tsx: removed module TASKS constant and local done/markDone; added props tasks/doneIds/tasksLoading?/onComplete; todayTasks now filters the tasks prop; added a 'Carregando tarefas…' state mirroring BusinessScreen's reviewsLoading pattern so tasksLoading is consumed. WeekView signature changed to { tasks, done, onDone } and its internal TASKS.filter -> tasks.filter; call site is <WeekView tasks={tasks} done={doneIds} onDone={onComplete} /> (full list to WeekView, today-only to TodayView). care.tsx wires useCareTasks(account?.uid) via useAccount and passes tasks/doneIds/tasksLoading/onComplete=complete, keeping onNavigate. Lint note: avoided react-hooks/set-state-in-effect by moving the uid-change reset into a render-time 'adjust state on prop change' block (mirrors useBusinessReviews) and keeping effect setState inside promise callbacks. VERIFICATION: `npx tsc --noEmit` 0 errors; `npx expo lint` 0 errors (1 pre-existing unrelated warning in DiscoverScreen.tsx, file untouched). NOTE per context.json: tsc/lint passing does not prove Firestore runtime behavior; real seed/list/complete must be smoke-tested manually in Expo Go."
+}
