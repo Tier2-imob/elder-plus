@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { LoginScreen } from '@/screens/LoginScreen';
 import type { AccountRole } from '@/components/types';
+import { LoginScreen } from '@/screens/LoginScreen';
 
 export default function Index() {
   const router = useRouter();
@@ -16,9 +16,7 @@ export default function Index() {
     <LoginScreen
       topInset={insets.top}
       onSelectRole={handleSelectRole}
-      // "Já tenho conta — Entrar" ainda não tem destino: o fluxo de login
-      // pra quem já é usuário não existe neste projeto novo ainda.
-      // onLogin={() => router.push('/algum-lugar')}
+      onLogin={() => router.push('/login')}
       backgroundIlustration={require('@/assets/images/ilustrations/an-elderly-couple-walking-hand-in-hand-along-a-win.jpg')}
       brandMark={require('@/assets/images/brand/Simbolo - azul.png')}
     />

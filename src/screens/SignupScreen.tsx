@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { Image, Pressable, Text, TextInput, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from "react-native";
 
 import type { AccountRole } from "@/components/types";
 import { ROLE_CONTEXT } from "@/constants/constants";
@@ -11,21 +11,36 @@ export function SignupScreen({
   onContinue,
   asset,
   topInset = 0,
+  submitting = false,
+  errorMessage,
 }: {
   role: AccountRole;
   onBack: () => void;
-  onContinue: (name: string) => void;
+  onContinue: (input: { name: string; email: string; password: string }) => void;
   asset?: number;
   topInset?: number;
+  submitting?: boolean;
+  errorMessage?: string;
 }) {
   const context = ROLE_CONTEXT[role];
   const isNavy = context.tone === "navy";
   const [name, setName] = useState("");
-  const canContinue = useMemo(() => name.trim().length > 1, [name]);3
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const canContinue = useMemo(
+    () =>
+      name.trim().length > 1 &&
+      /\S+@\S+\.\S+/.test(email) &&
+      password.length >= 6 &&
+      !submitting,
+    [name, email, password, submitting]
+  );
 
   function handleContinue() {
     if (!canContinue) return;
-    onContinue(name.trim());
+    onContinue({ name: name.trim(), email: email.trim(), password });
   }
 
   return (
@@ -65,14 +80,46 @@ export function SignupScreen({
           placeholderTextColor="#6B7A85"
           autoFocus
           autoCapitalize="words"
+          returnKeyType="next"
+          onSubmitEditing={() => emailRef.current?.focus()}
+          className="min-h-[56px] rounded-2xl border-[1.6px] border-hairline bg-white px-4 font-hanken-medium text-[15.5px] text-ink"
+        />
+        <Text className="font-hanken text-muted text-xs mt-2">{context.nameHint}</Text>
+
+        <Text className="font-hanken-medium text-navy text-xs mb-2 mt-5">Seu e-mail</Text>
+        <TextInput
+          ref={emailRef}
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Ex: fernanda@email.com"
+          placeholderTextColor="#6B7A85"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          className="min-h-[56px] rounded-2xl border-[1.6px] border-hairline bg-white px-4 font-hanken-medium text-[15.5px] text-ink"
+        />
+
+        <Text className="font-hanken-medium text-navy text-xs mb-2 mt-5">Sua senha</Text>
+        <TextInput
+          ref={passwordRef}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Pelo menos 6 caracteres"
+          placeholderTextColor="#6B7A85"
+          secureTextEntry
+          autoCapitalize="none"
           returnKeyType="done"
           onSubmitEditing={handleContinue}
           className="min-h-[56px] rounded-2xl border-[1.6px] border-hairline bg-white px-4 font-hanken-medium text-[15.5px] text-ink"
         />
-        <Text className="font-hanken text-muted text-xs mt-2">{context.nameHint}</Text>
       </View>
 
       <View className="px-6 pb-7 mt-auto">
+        {errorMessage ? (
+          <Text className="font-hanken-medium text-terracotta text-[13px] text-center mb-3">{errorMessage}</Text>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Continuar"
@@ -83,7 +130,11 @@ export function SignupScreen({
           }`}
         >
           <Text className={`font-hanken-bold text-base ${canContinue ? "text-white" : "text-terracotta"}`}>Continuar</Text>
-          <MaterialIcons name="arrow-forward" size={19} color={canContinue ? "#FFFFFF" : "#6B7A85"} />
+          {submitting ? (
+            <ActivityIndicator size="small" color={canContinue ? "#FFFFFF" : "#6B7A85"} />
+          ) : (
+            <MaterialIcons name="arrow-forward" size={19} color={canContinue ? "#FFFFFF" : "#6B7A85"} />
+          )}
         </Pressable>
         <Text className="font-hanken text-muted text-[11px] text-center mt-3 px-2">
           Ao continuar, você concorda com os Termos e a Privacidade do Elder.
