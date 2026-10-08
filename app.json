@@ -32,6 +32,12 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Elder usa suas fotos para anexar exames e receitas ao seu perfil."
+        }
       ]
     ],
     "experiments": {
