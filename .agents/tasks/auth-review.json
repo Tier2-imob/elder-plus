@@ -1,0 +1,12 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "label": "Signup name not forwarded to Google path",
+      "blocking": false,
+      "confidence": "confirmed",
+      "detail": "The signup Google button calls signInWithGoogle({ mode: 'signup', role }) without the typed name, so the created profile defaults to the Google displayName (fallback 'Usuário'). Documented as a deliberate minor follow-up in the plan; non-blocking."
+    }
+  ],
+  "reviewDoc": "c:\\Users\\savio\\OneDrive\\Tier2\\Elder - Final/.agents/tasks/auth-review.md"
+}
