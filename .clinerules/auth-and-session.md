@@ -47,9 +47,13 @@ favorites: Set<string>; toggleFavorite(id): void; isFavorite(id): boolean
    parceiro é criado. (Até o Portal do Parceiro existir.)
 5. **Limpeza de usuário órfão**: se a escrita do perfil falhar após criar o usuário no Auth,
    `auth.signUp` faz `deleteUser` (fallback `signOut`) antes de rejeitar, liberando o email.
-6. **Persistência de sessão** usa um adaptador AsyncStorage escrito à mão em `config.ts` (o import
-   `getReactNativePersistence` do `@firebase/auth` não resolve no tsconfig deste projeto). Não troque
-   por aquele import sem validar `tsc --noEmit` — se mexer, mantenha o fallback.
+6. **Persistência de sessão** usa `getReactNativePersistence(AsyncStorage)` (SDK), importado do
+   pacote interno `@firebase/auth` em `config.ts` — é uma fábrica que retorna uma classe
+   `Persistence` real, então `initializeAuth` não lança "Expected a class definition". Os tipos vêm
+   do entry RN via `paths` no `tsconfig.json` (`@firebase/auth` →
+   `./node_modules/@firebase/auth/dist/rn/index.rn.d.ts`); não reintroduza o adaptador de objeto
+   escrito à mão. O guard de inicialização só pode engolir `auth/already-initialized` (Fast Refresh)
+   e deve re-lançar qualquer outra falha real — nunca um `catch` cego que mascare o erro.
 
 ## `AUTH_ROUTES`
 

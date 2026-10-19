@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+// `getReactNativePersistence` lives only in the inner `@firebase/auth` package's React Native
+// entry, not the umbrella `firebase/auth`. Metro resolves `@firebase/auth` via its
+// `"react-native": "dist/rn/index.js"` field at runtime, and the `@firebase/auth` → RN `.d.ts`
+// entry in tsconfig `paths` supplies the matching types — so this is fully typed (no TS2305).
+import { getReactNativePersistence } from '@firebase/auth'
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app'
-import { getAuth, initializeAuth, type Auth, type Persistence } from 'firebase/auth'
+import { getAuth, initializeAuth, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
@@ -16,45 +21,30 @@ const firebaseConfig = {
 
 const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig)
 
-// Persistence over AsyncStorage. The RN-only `getReactNativePersistence` export from
-// '@firebase/auth' does NOT resolve under this project's tsconfig (tsc TS2305 — the inner
-// package's React Native entry is not selected by the configured module resolution), so per
-// design.md step 3 we use a tiny hand-written Persistence adapter over AsyncStorage instead of
-// forcing the import. It implements the `_isAvailable/_set/_get/_remove` surface the Auth
-// internals call at runtime and is cast to the public `Persistence` type for `initializeAuth`.
-const asyncStoragePersistence = {
-  type: 'LOCAL' as const,
-  async _isAvailable(): Promise<boolean> {
-    try {
-      await AsyncStorage.setItem('__firebase_persistence_probe__', '1')
-      await AsyncStorage.removeItem('__firebase_persistence_probe__')
-      return true
-    } catch {
-      return false
-    }
-  },
-  async _set(key: string, value: object | string): Promise<void> {
-    await AsyncStorage.setItem(key, JSON.stringify(value))
-  },
-  async _get<T extends object | string>(key: string): Promise<T | null> {
-    const raw = await AsyncStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : null
-  },
-  async _remove(key: string): Promise<void> {
-    await AsyncStorage.removeItem(key)
-  },
-  // No-op cross-tab listeners: AsyncStorage has no storage events on native.
-  _addListener(_key: string, _listener: unknown): void {},
-  _removeListener(_key: string, _listener: unknown): void {},
-} as unknown as Persistence
+// AsyncStorage-backed LOCAL persistence. `getReactNativePersistence` is the SDK's own factory:
+// it returns a real Persistence class/constructor that Auth's internals instantiate with `new`.
+// This is why it does not throw "Expected a class definition" like the previous hand-written
+// object-literal adapter did. async-storage here is v2 (2.2.0), so the default AsyncStorage
+// export is passed directly (the v3 `createAsyncStorage` shape does not apply).
+const persistence = getReactNativePersistence(AsyncStorage)
 
-// initializeAuth must run exactly once; on Fast Refresh it throws auth/already-initialized,
-// in which case we reuse the existing instance via getAuth(app).
+// initializeAuth must run exactly once. On Fast Refresh it throws auth/already-initialized;
+// in that case only, reuse the existing instance via getAuth(app). Any other error is a real
+// initialization failure and is re-thrown rather than silently masked.
 let auth: Auth
 try {
-  auth = initializeAuth(app, { persistence: asyncStoragePersistence })
-} catch {
-  auth = getAuth(app)
+  auth = initializeAuth(app, { persistence })
+} catch (error) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'auth/already-initialized'
+  ) {
+    auth = getAuth(app)
+  } else {
+    throw error
+  }
 }
 
 const db: Firestore = getFirestore(app)
