@@ -21,6 +21,12 @@ import type { AccountRole } from '@/components/types'
 import { auth } from './config'
 import { createProfile, getProfile, normalizeRole } from './users'
 
+/**
+ * Re-export of the Firebase Auth user type so consumers (e.g. the account context) can reference
+ * the authenticated user without importing `firebase/auth` directly, preserving the layer boundary.
+ */
+export type AuthUser = User
+
 /** Build an Error carrying an app/Firebase-style `code` for PT-BR mapping in auth-errors.ts. */
 function errorWithCode(code: string, message = code): Error & { code: string } {
   const error = new Error(message) as Error & { code: string }
@@ -34,7 +40,7 @@ function errorWithCode(code: string, message = code): Error & { code: string } {
 // reversed client id before any iOS build).
 const GOOGLE_WEB_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
-  '655190869254-a9vv7bu6hbdlip14nemp8lu09jvfaear.apps.googleusercontent.com'
+  '282903276795-autru9qmjcm8hq6m6dpfb4fschvn149j.apps.googleusercontent.com'
 
 // Configure the native Google sign-in module once at module load.
 GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID })

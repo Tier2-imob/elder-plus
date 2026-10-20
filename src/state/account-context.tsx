@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import type { AccountRole } from '@/components/types';
+import type { AuthUser } from '@/services/firebase/auth';
 import * as auth from '@/services/firebase/auth';
 import * as favorites from '@/services/firebase/favorites';
 import type { UserProfile } from '@/services/firebase/types';
@@ -44,6 +45,51 @@ export function AccountProvider({ children }: { children: ReactNode }){
         favoritesRef.current = favoriteIds
     }, [favoriteIds])
 
+    // UIDs whose profile was just created/confirmed by an explicit signUp/signInWithGoogle call.
+    // The sign-UP paths await createProfile before returning, then set the account directly. The
+    // auth-state listener, however, can fire the instant Firebase authenticates — BEFORE that write
+    // lands — and read a null profile. This guard lets such an early, stale listener callback skip
+    // its 'no profile' branch for a uid we are actively provisioning, so it cannot clobber the
+    // account the explicit path is about to set. It never masks the genuine no-profile case
+    // (Google mode:'signin' / an interrupted signup), because those uids are never recorded here.
+    const provisioningUidsRef = useRef<Set<string>>(new Set())
+
+    // Load favorites for a signed-in uid; never throws (empties the set on failure).
+    const loadFavorites = useCallback(async (uid: string) => {
+        try {
+            const ids = await favorites.listFavorites(uid)
+            setFavoriteIds(new Set(ids))
+        } catch (e) {
+            console.warn('favorites load failed', e)
+            setFavoriteIds(new Set())
+        }
+    }, [])
+
+    // Shared account resolver: read the profile for a known-authenticated user and commit the
+    // account state (the same `account` RootNavigator reacts to). Used by both the auth-state
+    // listener and the explicit post-signup resolution so navigation never depends solely on a
+    // listener callback that may have already fired too early.
+    const resolveAccount = useCallback(
+        async (user: AuthUser): Promise<Account> => {
+            let profile: UserProfile | null = null
+            try {
+                profile = await users.getProfile(user.uid)
+            } catch (e) {
+                console.warn('profile load failed', e)
+            }
+
+            if (!profile) {
+                return null
+            }
+
+            const next: Account = { name: profile.name, role: profile.role, uid: user.uid }
+            setAccount(next)
+            await loadFavorites(user.uid)
+            return next
+        },
+        [loadFavorites]
+    )
+
     useEffect(() => {
         const unsub = auth.observeAuth(async (user) => {
             try {
@@ -53,39 +99,28 @@ export function AccountProvider({ children }: { children: ReactNode }){
                     return
                 }
 
-                let profile: UserProfile | null = null
-                try {
-                    profile = await users.getProfile(user.uid)
-                } catch (e) {
-                    console.warn('profile load failed', e)
-                }
+                const resolved = await resolveAccount(user)
+                if (resolved) return
 
-                if (!profile) {
-                    // Auth user exists but no app profile (e.g. signup interrupted after
-                    // createUser but before the profile write): treat as signed-out at the app
-                    // layer + surface a one-time error.
-                    setAccount(null)
-                    setFavoriteIds(new Set())
-                    setProfileError('Não foi possível carregar seu perfil. Entre novamente.')
-                    return
-                }
+                // Profile not found. If this uid is being provisioned by an in-flight explicit
+                // signUp/signInWithGoogle, this is the known listener-timing race: the profile
+                // write has not landed yet. Skip the 'no profile' branch and let the explicit path
+                // set the account once createProfile resolves.
+                if (provisioningUidsRef.current.has(user.uid)) return
 
-                setAccount({ name: profile.name, role: profile.role, uid: user.uid })
-
-                try {
-                    const ids = await favorites.listFavorites(user.uid)
-                    setFavoriteIds(new Set(ids))
-                } catch (e) {
-                    console.warn('favorites load failed', e)
-                    setFavoriteIds(new Set())
-                }
+                // Genuine 'no app profile' case (signup interrupted after createUser but before the
+                // profile write, or a Google mode:'signin' with no Elder profile): treat as
+                // signed-out at the app layer + surface a one-time error.
+                setAccount(null)
+                setFavoriteIds(new Set())
+                setProfileError('Não foi possível carregar seu perfil. Entre novamente.')
             } finally {
                 setLoading(false)
             }
         })
 
         return unsub
-    }, [])
+    }, [resolveAccount])
 
     const signUp = useCallback(
         async (input: { name: string; role: AccountRole; email: string; password: string }) => {
@@ -97,9 +132,23 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 error.code = 'app/partner-not-available'
                 throw error
             }
-            await auth.signUp({ name: input.name, role, email: input.email, password: input.password })
+            // auth.signUp awaits createProfile before resolving, so the profile is guaranteed to
+            // exist once this returns. Resolve the account here directly instead of relying on the
+            // auth-state listener, which may have fired before the profile write landed.
+            const user = await auth.signUp({
+                name: input.name,
+                role,
+                email: input.email,
+                password: input.password,
+            })
+            provisioningUidsRef.current.add(user.uid)
+            try {
+                await resolveAccount(user)
+            } finally {
+                provisioningUidsRef.current.delete(user.uid)
+            }
         },
-        []
+        [resolveAccount]
     )
 
     const signIn = useCallback(async (input: { email: string; password: string }) => {
@@ -115,9 +164,19 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 error.code = 'app/partner-not-available'
                 throw error
             }
-            await auth.signInWithGoogle(input)
+            // auth.signInWithGoogle awaits createProfile (signup mode) or rejects with
+            // 'app/no-profile' (signin mode, no Elder profile) before resolving. On success the
+            // profile is guaranteed to exist, so resolve the account here directly rather than
+            // depending on a listener callback that may have fired before the write landed.
+            const user = await auth.signInWithGoogle(input)
+            provisioningUidsRef.current.add(user.uid)
+            try {
+                await resolveAccount(user)
+            } finally {
+                provisioningUidsRef.current.delete(user.uid)
+            }
         },
-        []
+        [resolveAccount]
     )
 
     const signOut = useCallback(async () => {
