@@ -10,6 +10,9 @@ export type NearestTask = {
   title: string
   time: string
   icon: keyof typeof MaterialIcons.glyphMap
+  day: string
+  dayKey: string
+  assignee?: string
 }
 
 /**
@@ -104,6 +107,9 @@ export function useNearestTask(uid: string | undefined) {
                   title: nearest.title,
                   time: nearest.time,
                   icon: nearest.icon as keyof typeof MaterialIcons.glyphMap,
+                  day: nearest.day,
+                  dayKey: nearest.dayKey,
+                  assignee: nearest.assignee,
                 }
               : null
           )

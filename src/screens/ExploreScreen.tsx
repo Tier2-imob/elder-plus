@@ -6,6 +6,7 @@ import type { ServiceItem } from '@/screens/DiscoverScreen'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { WebView } from 'react-native-webview'
 
 type Category = {
   id: string
@@ -213,7 +214,7 @@ export function ExploreScreen({
         {/* Próxima tarefa — só quando há usuário logado */}
         {uid ? (
           <View className="mb-7">
-            <Text className="font-hanken-medium text-muted text-xs mb-2">Próxima tarefa</Text>
+            <Text className="font-hanken-bold text-navy text-3xl mb-2">Próxima tarefa</Text>
             {taskLoading ? (
               <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
                 <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
@@ -231,6 +232,20 @@ export function ExploreScreen({
                 <View className="flex-1">
                   <Text className="font-hanken-bold text-navy text-[15px] mb-0.5">{nearestTask.title}</Text>
                   <Text className="font-hanken text-muted text-[12.5px]">{nearestTask.time}</Text>
+                  <View className="flex-row flex-wrap items-center gap-2 mt-2">
+                    {nearestTask.day ? (
+                      <View className="flex-row items-center gap-1 rounded-full border border-hairline bg-navy/5 px-2.5 py-1">
+                        <MaterialIcons name="event" size={11} color="#11375C" />
+                        <Text className="font-hanken-medium text-navy text-[11px]">{nearestTask.day}</Text>
+                      </View>
+                    ) : null}
+                    {nearestTask.assignee ? (
+                      <View className="flex-row items-center gap-1 rounded-full bg-terracotta/10 px-2.5 py-1">
+                        <MaterialIcons name="person" size={11} color="#DD7C54" />
+                        <Text className="font-hanken-medium text-terracotta text-[11px]">{nearestTask.assignee}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
               </View>
             ) : (
@@ -267,13 +282,41 @@ export function ExploreScreen({
           ))}
         </View>
 
-        {/* Minimapa (placeholder estático — mapa real virá depois) */}
-        <View className="rounded-2xl border border-hairline bg-navy/10 items-center justify-center mb-7" style={{ height: 180 }}>
-          <View className="w-14 h-14 rounded-2xl items-center justify-center bg-navy/10 mb-3">
-            <MaterialIcons name="map" size={28} color="#11375C" />
+        {/* Mapa — iframe do Google Maps Embed dentro de um HTML local,
+            contornando a restrição "must be used in an iframe" do Maps Embed API. */}
+        <View className="mb-7">
+          <Text className="font-hanken-bold text-navy text-[15px] mb-3">Serviços perto de você</Text>
+          <View
+            className="overflow-hidden border border-hairline"
+            style={{ height: 200, borderRadius: 20 }}
+          >
+            <WebView
+              originWhitelist={['*']}
+              source={{
+                html: `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    iframe { width: 100%; height: 100%; border: 0; display: block; }
+  </style>
+</head>
+<body>
+  <iframe
+    src="https://www.google.com/maps/embed/v1/search?key=AIzaSyDDgn0WgT-I7R7cvinDPCulsNCbGfOhcNI&q=${encodeURIComponent('servicos de saude para idosos')}&zoom=14"
+    allowfullscreen
+    loading="lazy"
+    referrerpolicy="no-referrer-when-downgrade">
+  </iframe>
+</body>
+</html>`,
+              }}
+              style={{ flex: 1 }}
+              javaScriptEnabled
+            />
           </View>
-          <Text className="font-hanken-bold text-navy text-[15px]">Serviços perto de você</Text>
-          <Text className="font-hanken text-muted text-[12.5px] mt-0.5">Mapa em breve</Text>
         </View>
 
         {/* Perto de você */}
