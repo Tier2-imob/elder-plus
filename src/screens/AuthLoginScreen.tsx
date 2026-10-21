@@ -9,6 +9,7 @@ export function AuthLoginScreen({
   onBack,
   submitting = false,
   errorMessage,
+  disabled = false,
 }: {
   topInset?: number;
   onSubmit: (input: { email: string; password: string }) => void | Promise<void>;
@@ -16,13 +17,16 @@ export function AuthLoginScreen({
   onBack: () => void;
   submitting?: boolean;
   errorMessage?: string;
+  // Externally-forced disabled state (e.g. temporary login lockout). Keeps the screen pure: the
+  // wrapper decides WHEN to block; the screen just reflects it in the submit button.
+  disabled?: boolean;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const passwordRef = useRef<TextInput>(null);
   const canSubmit = useMemo(
-    () => email.trim().length > 0 && password.length > 0 && !submitting,
-    [email, password, submitting]
+    () => email.trim().length > 0 && password.length > 0 && !submitting && !disabled,
+    [email, password, submitting, disabled]
   );
 
   function handleSubmit() {

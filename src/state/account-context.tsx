@@ -11,6 +11,11 @@ import {
 
 import type { AccountRole } from '@/components/types';
 import { TERMS_VERSION } from '@/constants/constants';
+import {
+    assertNotLockedOut,
+    clearLockout,
+    registerFailedAttempt,
+} from '@/services/auth-lockout';
 import type { AuthUser } from '@/services/firebase/auth';
 import * as auth from '@/services/firebase/auth';
 import * as favorites from '@/services/firebase/favorites';
@@ -162,7 +167,19 @@ export function AccountProvider({ children }: { children: ReactNode }){
     )
 
     const signIn = useCallback(async (input: { email: string; password: string }) => {
-        await auth.signIn(input)
+        // Client-side temporary lockout (no backend): while blocked, reject BEFORE touching
+        // Firebase so a locked account never reaches the network. A failed attempt increments the
+        // per-email counter; the 5th failure starts the cooldown. A success clears it.
+        assertNotLockedOut(input.email)
+        try {
+            await auth.signIn(input)
+        } catch (e) {
+            const lockout = registerFailedAttempt(input.email)
+            // If this failure triggered the block, surface the lockout error (with remaining time)
+            // instead of the raw Firebase credential error.
+            throw lockout ?? e
+        }
+        clearLockout(input.email)
     }, [])
 
     const signInWithGoogle = useCallback(

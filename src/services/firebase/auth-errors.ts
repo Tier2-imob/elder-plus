@@ -6,6 +6,7 @@ const MESSAGES: Record<string, string> = {
   'auth/user-not-found': 'Não encontramos uma conta com esse e-mail.',
   'auth/wrong-password': 'E-mail ou senha incorretos. Verifique e tente novamente.',
   'auth/too-many-requests': 'Muitas tentativas. Aguarde um momento e tente novamente.',
+  'app/too-many-attempts': 'Muitas tentativas. Tente novamente em alguns instantes.',
   'app/partner-not-available': 'O Portal do Parceiro ainda não está disponível. Em breve!',
   'app/terms-not-accepted':
     'Para continuar, aceite os Termos de Uso e a Política de Privacidade do Elder+.',
@@ -26,6 +27,14 @@ const FALLBACK = 'Algo deu errado. Tente novamente.'
 export function toPtMessage(e: unknown): string {
   if (e && typeof e === 'object' && 'code' in e) {
     const code = (e as { code?: unknown }).code
+    // Client-side lockout carries the remaining wait in seconds — interpolate it so the user sees
+    // exactly how long to wait. Falls back to the static message if the field is missing.
+    if (code === 'app/too-many-attempts') {
+      const remaining = (e as { remainingSeconds?: unknown }).remainingSeconds
+      if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining > 0) {
+        return `Muitas tentativas. Tente novamente em ${remaining}s.`
+      }
+    }
     if (typeof code === 'string' && code in MESSAGES) return MESSAGES[code]
   }
   return FALLBACK
