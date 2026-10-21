@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import type { AccountRole } from '@/components/types';
+import { TERMS_VERSION } from '@/constants/constants';
 import type { AuthUser } from '@/services/firebase/auth';
 import * as auth from '@/services/firebase/auth';
 import * as favorites from '@/services/firebase/favorites';
@@ -21,7 +22,7 @@ type Account = { name: string; role: AccountRole; uid: string } | null
 type AccountContextValue = {
     account: Account
     loading: boolean
-    signUp: (input: { name: string; role: AccountRole; email: string; password: string }) => Promise<void>
+    signUp: (input: { name: string; role: AccountRole; email: string; password: string; acceptedTerms: boolean }) => Promise<void>
     signIn: (input: { email: string; password: string }) => Promise<void>
     signInWithGoogle: (
         input: { mode: 'signup'; name?: string; role: AccountRole } | { mode: 'signin' }
@@ -123,13 +124,21 @@ export function AccountProvider({ children }: { children: ReactNode }){
     }, [resolveAccount])
 
     const signUp = useCallback(
-        async (input: { name: string; role: AccountRole; email: string; password: string }) => {
+        async (input: { name: string; role: AccountRole; email: string; password: string; acceptedTerms: boolean }) => {
             const role = users.normalizeRole(input.role)
             if (role === 'partner') {
                 // Partner is blocked in Wave 1 BEFORE any Firebase call: no auth user and no
                 // users/{uid} profile is ever created for a partner.
                 const error = new Error('partner-not-available') as Error & { code?: string }
                 error.code = 'app/partner-not-available'
+                throw error
+            }
+            if (input.acceptedTerms !== true) {
+                // Defense in depth: the screen gates "Continuar" on acceptance, but never create an
+                // auth user / profile without recorded consent — block BEFORE any Firebase call,
+                // mirroring the partner-block pattern.
+                const error = new Error('terms-not-accepted') as Error & { code?: string }
+                error.code = 'app/terms-not-accepted'
                 throw error
             }
             // auth.signUp awaits createProfile before resolving, so the profile is guaranteed to
@@ -140,6 +149,7 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 role,
                 email: input.email,
                 password: input.password,
+                termsVersion: TERMS_VERSION,
             })
             provisioningUidsRef.current.add(user.uid)
             try {

@@ -15,8 +15,10 @@ import {
     type User,
     type UserCredential
 } from 'firebase/auth'
+import { serverTimestamp } from 'firebase/firestore'
 
 import type { AccountRole } from '@/components/types'
+import { TERMS_VERSION } from '@/constants/constants'
 
 import { auth } from './config'
 import { createProfile, getProfile, normalizeRole } from './users'
@@ -50,6 +52,7 @@ export async function signUp(input: {
   role: AccountRole
   email: string
   password: string
+  termsVersion: string
 }): Promise<User> {
   const cred = await createUserWithEmailAndPassword(auth, input.email, input.password)
   try {
@@ -57,6 +60,8 @@ export async function signUp(input: {
       name: input.name,
       role: input.role,
       email: input.email,
+      termsVersion: input.termsVersion,
+      termsAcceptedAt: serverTimestamp(),
     })
   } catch (profileError) {
     // Clean up the just-created auth user before rejecting so the email is freed for a retry.
@@ -154,6 +159,8 @@ export async function signInWithGoogle(
       name: input.name ?? cred.user.displayName ?? 'Usuário',
       role: normalizeRole(input.role),
       email: cred.user.email ?? '',
+      termsVersion: TERMS_VERSION,
+      termsAcceptedAt: serverTimestamp(),
     })
   } catch (profileError) {
     // Clean up the just-created auth user before rejecting so the account is freed for a retry.

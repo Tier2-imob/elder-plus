@@ -18,14 +18,24 @@ export default function Signup() {
 
   const role: AccountRole = rawRole === 'partner' ? 'partner' : rawRole === 'elder' ? 'elder' : 'family'
 
-  async function handleContinue({ name, email, password }: { name: string; email: string; password: string }) {
+  async function handleContinue({
+    name,
+    email,
+    password,
+    acceptedTerms,
+  }: {
+    name: string
+    email: string
+    password: string
+    acceptedTerms: boolean
+  }) {
     setSubmitting(true)
     setErrorMessage(undefined)
     try {
       // No navigation here. For elder/family, signUp succeeds, account becomes non-null, and
       // RootNavigator (the single redirect owner) replaces to /explore. For partner, signUp throws
       // 'app/partner-not-available' before any session exists.
-      await signUp({ name, role, email, password })
+      await signUp({ name, role, email, password, acceptedTerms })
     } catch (e) {
       setErrorMessage(toPtMessage(e))
     } finally {

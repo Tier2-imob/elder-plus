@@ -1,5 +1,5 @@
-import type { Timestamp } from 'firebase/firestore'
 import type { AccountRole } from '@/components/types'
+import type { Timestamp } from 'firebase/firestore'
 
 /** users/{uid} profile document. */
 export type UserProfile = {
@@ -7,6 +7,10 @@ export type UserProfile = {
   role: AccountRole
   email: string
   createdAt: Timestamp | null
+  /** Momento em que o usuário aceitou os termos (carimbo do servidor). LGPD. */
+  termsAcceptedAt: Timestamp | null
+  /** Versão dos termos aceita no cadastro (ver TERMS_VERSION). */
+  termsVersion: string
 }
 
 /** businesses/{businessId}/reviews/{reviewId} document (+ its id). */

@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc, type FieldValue } from 'firebase/firestore'
 
 import type { AccountRole } from '@/components/types'
 
@@ -13,16 +13,30 @@ export function normalizeRole(raw: unknown): AccountRole {
   return raw === 'elder' || raw === 'family' || raw === 'partner' ? raw : 'family'
 }
 
-/** Create the users/{uid} profile document with a server timestamp. */
+/**
+ * Create the users/{uid} profile document with a server timestamp.
+ *
+ * `termsVersion` and `termsAcceptedAt` are REQUIRED so every signup path (email + Google) records
+ * LGPD consent consistently. `termsAcceptedAt` is expected to be a `serverTimestamp()` sentinel
+ * supplied by the caller, so the acceptance moment is stamped by the server, not the client.
+ */
 export async function createProfile(
   uid: string,
-  input: { name: string; role: AccountRole; email: string }
+  input: {
+    name: string
+    role: AccountRole
+    email: string
+    termsVersion: string
+    termsAcceptedAt: FieldValue
+  }
 ): Promise<void> {
   await setDoc(doc(db, 'users', uid), {
     name: input.name,
     role: normalizeRole(input.role),
     email: input.email,
     createdAt: serverTimestamp(),
+    termsVersion: input.termsVersion,
+    termsAcceptedAt: input.termsAcceptedAt,
   })
 }
 
@@ -36,5 +50,7 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
     role: normalizeRole(data.role),
     email: data.email,
     createdAt: data.createdAt ?? null,
+    termsAcceptedAt: data.termsAcceptedAt ?? null,
+    termsVersion: data.termsVersion ?? '',
   }
 }

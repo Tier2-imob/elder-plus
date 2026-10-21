@@ -7,6 +7,8 @@ const MESSAGES: Record<string, string> = {
   'auth/wrong-password': 'E-mail ou senha incorretos. Verifique e tente novamente.',
   'auth/too-many-requests': 'Muitas tentativas. Aguarde um momento e tente novamente.',
   'app/partner-not-available': 'O Portal do Parceiro ainda não está disponível. Em breve!',
+  'app/terms-not-accepted':
+    'Para continuar, aceite os Termos de Uso e a Política de Privacidade do Elder+.',
   'app/profile-write-failed': 'Não foi possível concluir o cadastro. Tente novamente.',
   // Entrada com Google
   'auth/account-exists-with-different-credential':

@@ -17,7 +17,7 @@ export function SignupScreen({
 }: {
   role: AccountRole;
   onBack: () => void;
-  onContinue: (input: { name: string; email: string; password: string }) => void;
+  onContinue: (input: { name: string; email: string; password: string; acceptedTerms: boolean }) => void;
   onGoogle: () => void | Promise<void>;
   asset?: number;
   topInset?: number;
@@ -29,6 +29,7 @@ export function SignupScreen({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const canContinue = useMemo(
@@ -36,13 +37,14 @@ export function SignupScreen({
       name.trim().length > 1 &&
       /\S+@\S+\.\S+/.test(email) &&
       password.length >= 6 &&
+      accepted &&
       !submitting,
-    [name, email, password, submitting]
+    [name, email, password, accepted, submitting]
   );
 
   function handleContinue() {
-    if (!canContinue) return;
-    onContinue({ name: name.trim(), email: email.trim(), password });
+    if (!canContinue || !accepted) return;
+    onContinue({ name: name.trim(), email: email.trim(), password, acceptedTerms: true });
   }
 
   return (
@@ -156,9 +158,25 @@ export function SignupScreen({
           <Text className="font-hanken-bold text-navy text-base">Continuar com Google</Text>
         </Pressable>
 
-        <Text className="font-hanken text-muted text-[11px] text-center mt-3 px-2">
-          Ao continuar, você concorda com os Termos e a Privacidade do Elder.
-        </Text>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: accepted }}
+          accessibilityLabel="Aceito os Termos de Uso e a Política de Privacidade do Elder+"
+          onPress={() => setAccepted((prev) => !prev)}
+          className="flex-row items-start gap-2.5 mt-4 px-1 active:opacity-70"
+        >
+          <View
+            className={`w-[22px] h-[22px] rounded-[7px] items-center justify-center border-[1.6px] mt-px ${
+              accepted ? "bg-navy border-navy" : "bg-white border-hairline"
+            }`}
+          >
+            {accepted ? <MaterialIcons name="check" size={15} color="#FFFFFF" /> : null}
+          </View>
+          <Text className="flex-1 font-hanken text-muted text-[12px] leading-[17px]">
+            Li e aceito os <Text className="font-hanken-bold text-navy">Termos de Uso</Text> e a{" "}
+            <Text className="font-hanken-bold text-navy">Política de Privacidade</Text> do Elder+.
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
