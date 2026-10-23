@@ -7,6 +7,7 @@ import { useMedications } from '@/hooks/useMedications'
 import { CareScreen } from '@/screens/CareScreen'
 import { CircleSetupScreen, type CircleSetupMode, type InvitePreview } from '@/screens/CircleSetupScreen'
 import {
+  canDissolve,
   canLeave,
   canManage,
   circleErrorMessage,
@@ -90,6 +91,7 @@ export default function Care() {
     updateMember,
     leaveCircle,
     updateMyPhone,
+    dissolveCircle,
     lookupInvite,
     acceptInvite,
     cancelPending,
@@ -160,6 +162,9 @@ export default function Care() {
         onSavePhone: inPortuguese('updateMyPhone', updateMyPhone),
         onLeave: inPortuguese('leaveCircle', leaveCircle),
         leaveBlockedReason: leaveBlockedReason(canLeave(membership, members)),
+        onDissolve: canDissolve(membership, members, circle)
+          ? inPortuguese('dissolveCircle', dissolveCircle)
+          : undefined,
       }}
       familyManagement={
         canManage(membership)

@@ -19,6 +19,7 @@ import type { AccountRole } from '@/components/types';
 import { CIRCLE_CONSENT_VERSION } from '@/constants/constants';
 import { assertNotLockedOut, clearLockout, registerFailedAttempt } from '@/services/auth-lockout';
 import {
+  canDissolve,
   canEditMember,
   canLeave,
   canManage,
@@ -69,6 +70,8 @@ type CircleValue = {
   leaveCircle: () => Promise<void>
   /** Set or clear one's own phone (needed to be an emergency contact). */
   updateMyPhone: (phone: string) => Promise<void>
+  /** Leave a circle you are alone in, deleting it and all its data (see canDissolve). */
+  dissolveCircle: () => Promise<void>
 
   // ─── Convidado ───
   /** Find a usable invite by what the user typed. Throws circle/* or lockout errors. */
@@ -300,6 +303,11 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     await circles.leaveCircle(circle, membership)
   }, [circle, membership, members])
 
+  const dissolve = useCallback(async (): Promise<void> => {
+    if (!circle || !membership || !canDissolve(membership, members, circle)) throw circleError('circle/not-allowed')
+    await circles.dissolveCircle(circle, membership, members)
+  }, [circle, membership, members])
+
   const updateMyPhone = useCallback(
     async (phone: string): Promise<void> => {
       if (!circleId || !membership) throw circleError('circle/not-allowed')
@@ -372,6 +380,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       cancelPending,
       leaveCircle: leave,
       updateMyPhone,
+      dissolveCircle: dissolve,
     }),
     [
       circleLoading,
@@ -390,6 +399,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       cancelPending,
       leave,
       updateMyPhone,
+      dissolve,
     ]
   )
 

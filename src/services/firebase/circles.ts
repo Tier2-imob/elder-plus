@@ -394,6 +394,45 @@ export async function leaveCircle(circle: CircleDoc, member: CircleMemberDoc): P
   await batch.commit()
 }
 
+// Firestore allows 500 writes per batch.
+const DELETES_PER_BATCH = 400
+
+/**
+ * Leave a circle you are alone in: there is nobody left to care, so the circle and all its data
+ * (tasks, medications, doses, pending requests, open invites) go away. Allowed for the titular
+ * with an account, or a manager when the titular is nominal (firestore.rules → circles delete).
+ *
+ * The data goes first, while the caller is still a member (the rules check membership); the last
+ * batch then revokes the open invites, removes pending requests, deletes the circle, the caller's
+ * own member doc (the rules keep a titular's, which is harmless once the circle is gone) and clears
+ * users/{uid}.circleId — all together, so the user is never left pointing at half a circle.
+ */
+export async function dissolveCircle(
+  circle: CircleDoc,
+  me: CircleMemberDoc,
+  members: CircleMemberDoc[]
+): Promise<void> {
+  for (const name of ['tasks', 'medications', 'medicationDoses'] as const) {
+    const snap = await getDocs(collection(db, 'circles', circle.id, name))
+    for (let i = 0; i < snap.docs.length; i += DELETES_PER_BATCH) {
+      const batch = writeBatch(db)
+      snap.docs.slice(i, i + DELETES_PER_BATCH).forEach((d) => batch.delete(d.ref))
+      await batch.commit()
+    }
+  }
+
+  const openInvites = (await listCircleInvites(circle.id)).filter((i) => !i.usedBy && !i.revoked)
+  const batch = writeBatch(db)
+  openInvites.forEach((i) => batch.update(inviteRef(i.code), { revoked: true }))
+  members
+    .filter((m) => m.uid !== me.uid)
+    .forEach((m) => batch.delete(memberRef(circle.id, m.uid)))
+  batch.delete(circleRef(circle.id))
+  if (me.role !== 'titular') batch.delete(memberRef(circle.id, me.uid))
+  batch.update(userRef(me.uid), { circleId: null })
+  await batch.commit()
+}
+
 export async function touchLastAccess(circleId: string, uid: string): Promise<void> {
   await updateDoc(memberRef(circleId, uid), { lastAccess: serverTimestamp() })
 }

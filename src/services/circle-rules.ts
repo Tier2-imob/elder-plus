@@ -124,6 +124,16 @@ export function formatPhone(digits: string): string {
   return `(${ddd}) ${rest.slice(0, cut)}-${rest.slice(cut)}`
 }
 
+/**
+ * Can `member` leave by dissolving the circle? Only when nobody else is active in it (pending
+ * requests don't count) and they may delete it: the titular, or a manager of a nominal circle.
+ */
+export function canDissolve(member: CircleMemberDoc, members: CircleMemberDoc[], circle: CircleDoc): boolean {
+  const othersActive = members.some((m) => m.uid !== member.uid && m.status === 'ativo')
+  if (othersActive || member.status !== 'ativo') return false
+  return member.role === 'titular' ? circle.subject.uid === member.uid : circle.subject.uid === null && canManage(member)
+}
+
 /** Can this tasks' responsible person be `member`? Active and able to see the routine. */
 export const isAssignable = (member: CircleMemberDoc) => hasPermission(member, 'ver-rotina')
 

@@ -48,16 +48,19 @@ export type FamilySelf = {
   onLeave: () => Promise<void>
   /** Why leaving is not possible right now (titular, last manager), if so. */
   leaveBlockedReason?: string
+  /** Alone in the circle: leaving deletes it (and all its data). */
+  onDissolve?: () => Promise<void>
 }
 
 /** "Você neste círculo": own phone and leaving. */
 function SelfSection({ self }: { self: FamilySelf }) {
   const [phone, setPhone] = useState(self.phone ? self.formatPhone(self.phone) : '')
-  const [busy, setBusy] = useState<'phone' | 'leave' | null>(null)
+  const [busy, setBusy] = useState<'phone' | 'leave' | 'dissolve' | null>(null)
   const [confirmLeave, setConfirmLeave] = useState(false)
+  const [confirmDissolve, setConfirmDissolve] = useState(false)
   const [message, setMessage] = useState<{ text: string; error: boolean } | undefined>(undefined)
 
-  async function run(kind: 'phone' | 'leave', action: () => Promise<void>, success?: string) {
+  async function run(kind: 'phone' | 'leave' | 'dissolve', action: () => Promise<void>, success?: string) {
     if (busy) return
     setBusy(kind)
     setMessage(undefined)
@@ -112,7 +115,55 @@ function SelfSection({ self }: { self: FamilySelf }) {
         </Text>
       ) : null}
 
-      {self.leaveBlockedReason ? (
+      {self.onDissolve ? (
+        // Alone in the circle: leaving means ending it.
+        <View className="mt-5">
+          <Text className="font-hanken text-ink text-[15px] leading-[22px]">
+            Você é a única pessoa neste círculo. Ao sair, o círculo é encerrado e{' '}
+            <Text className="font-hanken-bold">todas as tarefas, medicamentos e doses são apagados de vez</Text>.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              confirmDissolve
+                ? 'Confirmar: sair e apagar o círculo e todos os dados'
+                : 'Sair e excluir o círculo'
+            }
+            accessibilityState={{ busy: busy === 'dissolve', disabled: !!busy }}
+            disabled={!!busy}
+            onPress={() => {
+              const dissolve = self.onDissolve
+              if (!dissolve) return
+              if (confirmDissolve) void run('dissolve', dissolve)
+              else setConfirmDissolve(true)
+            }}
+            className="min-h-[56px] items-center justify-center rounded-2xl mt-3 px-4 active:opacity-70"
+            style={{ backgroundColor: confirmDissolve ? '#C0392B' : 'rgba(192,57,43,0.08)' }}
+          >
+            {busy === 'dissolve' ? (
+              <ActivityIndicator size="small" color={confirmDissolve ? '#FFFFFF' : '#C0392B'} />
+            ) : (
+              <Text
+                className="font-hanken-bold text-base text-center"
+                style={{ color: confirmDissolve ? '#FFFFFF' : '#C0392B' }}
+              >
+                {confirmDissolve ? 'Toque de novo para apagar tudo e sair' : 'Sair e excluir o círculo'}
+              </Text>
+            )}
+          </Pressable>
+          {confirmDissolve && busy !== 'dissolve' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar, manter o círculo"
+              onPress={() => setConfirmDissolve(false)}
+              className="min-h-[56px] items-center justify-center rounded-2xl mt-2 active:opacity-70"
+              style={{ backgroundColor: 'rgba(17,55,92,0.06)' }}
+            >
+              <Text className="font-hanken-bold text-base text-navy">Cancelar, manter o círculo</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : self.leaveBlockedReason ? (
         <Text className="font-hanken text-muted text-sm leading-5 mt-5">{self.leaveBlockedReason}</Text>
       ) : (
         <Pressable
