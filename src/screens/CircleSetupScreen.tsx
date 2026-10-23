@@ -33,11 +33,12 @@ const CONSENT_TEXT = {
 
 function Feature({ icon, text }: { icon: keyof typeof MaterialIcons.glyphMap; text: string }) {
   return (
-    <View className="flex-row items-center gap-3 mb-3">
-      <View className="w-10 h-10 rounded-2xl items-center justify-center bg-navy/10">
-        <MaterialIcons name={icon} size={19} color="#11375C" />
+    // items-start: with a large system font the text wraps to several lines and the icon stays on top.
+    <View className="flex-row items-start gap-3.5 mb-4">
+      <View className="w-12 h-12 rounded-2xl items-center justify-center bg-navy/10">
+        <MaterialIcons name={icon} size={23} color="#11375C" />
       </View>
-      <Text className="font-hanken text-ink text-[13.5px] leading-5 flex-1">{text}</Text>
+      <Text className="font-hanken text-ink text-base leading-6 flex-1 pt-3">{text}</Text>
     </View>
   )
 }
@@ -77,10 +78,10 @@ function CreateForm({
 
   return (
     <View>
-      <Text className="font-hanken-extrabold text-navy text-[23px] leading-7 mb-2">
+      <Text accessibilityRole="header" className="font-hanken-extrabold text-navy text-[28px] leading-[34px] mb-3">
         {isElder ? 'Crie seu círculo de cuidado' : 'Crie o círculo de cuidado'}
       </Text>
-      <Text className="font-hanken text-muted text-sm leading-5 mb-6">
+      <Text className="font-hanken text-muted text-[17px] leading-6 mb-7">
         {isElder
           ? 'Reúna familiares e profissionais de confiança para acompanhar sua rotina e sua saúde com você.'
           : 'O círculo reúne quem cuida da pessoa assistida: a rotina, a saúde e a família ficam num só lugar.'}
@@ -92,7 +93,7 @@ function CreateForm({
 
       {!isElder ? (
         <>
-          <Text className="font-hanken-medium text-navy text-xs mb-2 mt-4">Nome da pessoa assistida</Text>
+          <Text className="font-hanken-medium text-navy text-[15px] mb-2 mt-4">Nome da pessoa assistida</Text>
           <TextInput
             value={subjectName}
             onChangeText={setSubjectName}
@@ -101,14 +102,16 @@ function CreateForm({
             autoCapitalize="words"
             accessibilityLabel="Nome da pessoa assistida"
             accessibilityHint={attempted ? nameError : undefined}
-            className={`min-h-[52px] rounded-2xl border-[1.6px] ${
+            className={`min-h-[56px] rounded-2xl border-[1.6px] ${
               attempted && nameError ? 'border-terracotta' : 'border-hairline'
-            } bg-white px-4 font-hanken-medium text-[15px] text-ink`}
+            } bg-white px-4 font-hanken-medium text-[17px] text-ink`}
           />
           {attempted && nameError ? (
-            <Text className="font-hanken-medium text-terracotta text-xs mt-2">{nameError}</Text>
+            <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracotta text-sm leading-5 mt-2">
+              {nameError}
+            </Text>
           ) : null}
-          <Text className="font-hanken text-muted text-xs leading-4 mt-2">
+          <Text className="font-hanken text-muted text-sm leading-5 mt-2">
             Ela não precisa ter conta no Elder+. Se tiver, você poderá vinculá-la depois.
           </Text>
         </>
@@ -119,43 +122,52 @@ function CreateForm({
         accessibilityState={{ checked: accepted }}
         accessibilityLabel={isElder ? CONSENT_TEXT.elder : CONSENT_TEXT.family}
         onPress={() => setAccepted((prev) => !prev)}
-        className="flex-row items-start gap-2.5 mt-6 px-1 active:opacity-70"
+        className="min-h-[56px] flex-row items-start gap-3 mt-6 px-1 py-2 active:opacity-70"
       >
         <View
-          className={`w-[22px] h-[22px] rounded-[7px] items-center justify-center border-[1.6px] mt-px ${
+          className={`w-7 h-7 rounded-lg items-center justify-center border-2 ${
             accepted ? 'bg-navy border-navy' : attempted && consentError ? 'bg-white border-terracotta' : 'bg-white border-hairline'
           }`}
         >
-          {accepted ? <MaterialIcons name="check" size={15} color="#FFFFFF" /> : null}
+          {accepted ? <MaterialIcons name="check" size={20} color="#FFFFFF" /> : null}
         </View>
-        <Text className="flex-1 font-hanken text-muted text-[12.5px] leading-[18px]">
+        <Text className="flex-1 font-hanken text-ink text-[15px] leading-[22px]">
           {isElder ? CONSENT_TEXT.elder : CONSENT_TEXT.family}
         </Text>
       </Pressable>
       {attempted && consentError ? (
-        <Text className="font-hanken-medium text-terracotta text-xs mt-2 px-1">{consentError}</Text>
+        <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracotta text-sm leading-5 mt-1 px-1">
+          {consentError}
+        </Text>
       ) : null}
 
       {submitError ? (
-        <Text className="font-hanken-medium text-terracotta text-[13px] text-center mt-5">{submitError}</Text>
+        <Text
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          className="font-hanken-medium text-terracotta text-[15px] leading-[22px] text-center mt-5"
+        >
+          {submitError}
+        </Text>
       ) : null}
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Criar círculo"
+        accessibilityState={{ busy: submitting, disabled: submitting }}
         disabled={submitting}
         onPress={handleCreate}
-        className="min-h-[52px] rounded-2xl flex-row items-center justify-center gap-2 bg-navy mt-5 active:opacity-90"
+        className="min-h-[56px] rounded-2xl flex-row items-center justify-center gap-2.5 bg-navy mt-5 px-4 active:opacity-90"
       >
         {submitting ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
         ) : (
-          <MaterialIcons name="group-add" size={19} color="#FFFFFF" />
+          <MaterialIcons name="group-add" size={23} color="#FFFFFF" />
         )}
-        <Text className="font-hanken-bold text-base text-white">Criar círculo</Text>
+        <Text className="font-hanken-bold text-lg text-white">Criar círculo</Text>
       </Pressable>
 
-      <Text className="font-hanken text-muted text-xs leading-4 text-center mt-4 px-2">
+      <Text className="font-hanken text-muted text-sm leading-5 text-center mt-5 px-2">
         Recebeu um convite de outra pessoa? A entrada por código chega na próxima versão do app.
       </Text>
     </View>
@@ -165,11 +177,13 @@ function CreateForm({
 function Message({ icon, title, text }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; text: string }) {
   return (
     <View className="items-center pt-10">
-      <View className="w-16 h-16 rounded-3xl items-center justify-center bg-navy/10 mb-5">
-        <MaterialIcons name={icon} size={30} color="#11375C" />
+      <View className="w-20 h-20 rounded-3xl items-center justify-center bg-navy/10 mb-6">
+        <MaterialIcons name={icon} size={36} color="#11375C" />
       </View>
-      <Text className="font-hanken-extrabold text-navy text-xl text-center mb-2">{title}</Text>
-      <Text className="font-hanken text-muted text-sm leading-5 text-center px-4">{text}</Text>
+      <Text accessibilityRole="header" className="font-hanken-extrabold text-navy text-[26px] leading-8 text-center mb-3">
+        {title}
+      </Text>
+      <Text className="font-hanken text-muted text-[17px] leading-6 text-center px-2">{text}</Text>
     </View>
   )
 }
@@ -204,8 +218,8 @@ export function CircleSetupScreen({
           <Logo size="sm" style={{ width: 80, height: 24, marginBottom: 28 }} />
 
           {mode === 'loading' ? (
-            <View className="items-center pt-16">
-              <ActivityIndicator color="#11375C" />
+            <View className="items-center pt-16" accessible accessibilityLabel="Carregando o círculo de cuidado">
+              <ActivityIndicator size="large" color="#11375C" />
             </View>
           ) : mode === 'create' ? (
             <CreateForm isElder={isElder} onCreate={onCreate} />
