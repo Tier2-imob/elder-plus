@@ -9,12 +9,19 @@ import {
   type ReactNode,
 } from 'react';
 
-import { CIRCLE_ROLE_LABELS, type FamilyMember } from '@/components/care/types';
+import {
+  CIRCLE_ROLE_LABELS,
+  type CircleRole,
+  type FamilyMember,
+  type PermissionKey,
+} from '@/components/care/types';
 import type { AccountRole } from '@/components/types';
 import { CIRCLE_CONSENT_VERSION } from '@/constants/constants';
+import { assertNotLockedOut, clearLockout, registerFailedAttempt } from '@/services/auth-lockout';
+import { canManage, checkInviteUsable, circleError, normalizeInviteCode } from '@/services/circle-rules';
 import * as circles from '@/services/firebase/circles';
 import { migrateLegacyCareData } from '@/services/firebase/legacy-migration';
-import type { CircleDoc, CircleMemberDoc } from '@/services/firebase/types';
+import type { CircleDoc, CircleMemberDoc, InviteDoc } from '@/services/firebase/types';
 import * as users from '@/services/firebase/users';
 
 type CircleAccount = { uid: string; name: string; role: AccountRole } | null
@@ -35,6 +42,23 @@ type CircleValue = {
    * the assisted person). Throws circle/* errors for the screen to explain.
    */
   createCircle: (subjectName?: string) => Promise<void>
+
+  // ─── Convites (quem gerencia) ───
+  /** Open invites (not used, not revoked, not expired), newest first. Managers only. */
+  invites: InviteDoc[]
+  createInvite: (input: { role: CircleRole; label?: string; permissions: PermissionKey[] }) => Promise<InviteDoc>
+  revokeInvite: (code: string) => Promise<void>
+  approveMember: (uid: string) => Promise<void>
+  /** Reject a pending member (or remove one). */
+  rejectMember: (uid: string) => Promise<void>
+
+  // ─── Convidado ───
+  /** Find a usable invite by what the user typed. Throws circle/* or lockout errors. */
+  lookupInvite: (typedCode: string) => Promise<InviteDoc>
+  /** Join as pending with the consent recorded. */
+  acceptInvite: (code: string) => Promise<void>
+  /** Withdraw one's own pending request. */
+  cancelPending: () => Promise<void>
 }
 
 const CircleContext = createContext<CircleValue | undefined>(undefined)
@@ -162,6 +186,116 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   )
 
   // A failed circle read resolves to null (treated as "no circle"), so this never sticks.
+  // ─── Convites ───────────────────────────────────────────────────────────────
+
+  const isManager = canManage(membership)
+  const [invites, setInvites] = useState<InviteDoc[]>([])
+  const [invitesFor, setInvitesFor] = useState<string | null>(null)
+  if (!isManager && invitesFor !== null) {
+    setInvitesFor(null)
+    setInvites([])
+  }
+  // Bumped after creating/revoking to reload the list.
+  const [invitesVersion, setInvitesVersion] = useState(0)
+  useEffect(() => {
+    if (!circleId || !isManager) return
+    let active = true
+    circles
+      .listCircleInvites(circleId)
+      .then((all) => {
+        if (!active) return
+        const now = Date.now()
+        setInvites(all.filter((i) => !i.usedBy && !i.revoked && i.expiresAt.toMillis() > now))
+        setInvitesFor(circleId)
+      })
+      .catch((e) => console.warn('listCircleInvites failed', e))
+    return () => {
+      active = false
+    }
+  }, [circleId, isManager, invitesVersion])
+
+  const createInvite = useCallback(
+    async (input: { role: CircleRole; label?: string; permissions: PermissionKey[] }): Promise<InviteDoc> => {
+      if (!circle || !membership) throw circleError('circle/not-allowed')
+      const code = await circles.createInvite({ circle, actor: membership, ...input })
+      setInvitesVersion((n) => n + 1)
+      const invite = await circles.getInvite(code)
+      if (!invite) throw circleError('circle/invite-not-found')
+      return invite
+    },
+    [circle, membership]
+  )
+
+  const revokeInvite = useCallback(async (code: string): Promise<void> => {
+    await circles.revokeInvite(code)
+    setInvitesVersion((n) => n + 1)
+  }, [])
+
+  const findMember = useCallback(
+    (memberUid: string) => {
+      const member = members.find((m) => m.uid === memberUid)
+      if (!member) throw circleError('circle/not-allowed')
+      return member
+    },
+    [members]
+  )
+
+  const approveMember = useCallback(
+    async (memberUid: string): Promise<void> => {
+      if (!circleId) throw circleError('circle/not-allowed')
+      await circles.approveMember(circleId, findMember(memberUid))
+    },
+    [circleId, findMember]
+  )
+
+  const rejectMember = useCallback(
+    async (memberUid: string): Promise<void> => {
+      if (!circleId) throw circleError('circle/not-allowed')
+      await circles.removeMember(circleId, findMember(memberUid))
+    },
+    [circleId, findMember]
+  )
+
+  // Wrong codes count against a per-user lockout (5 tries, then a cooldown) so codes can't be
+  // guessed from the app; expired/used/revoked codes are real codes and don't count.
+  const lookupInvite = useCallback(
+    async (typedCode: string): Promise<InviteDoc> => {
+      if (!uid) throw circleError('circle/not-allowed')
+      const lockKey = `invite:${uid}`
+      assertNotLockedOut(lockKey)
+      const code = normalizeInviteCode(typedCode)
+      const invite = code ? await circles.getInvite(code) : null
+      if (!invite) {
+        throw registerFailedAttempt(lockKey) ?? circleError('circle/invite-not-found')
+      }
+      clearLockout(lockKey)
+      const unusable = checkInviteUsable(invite)
+      if (unusable) throw circleError(unusable)
+      return invite
+    },
+    [uid]
+  )
+
+  const acceptInvite = useCallback(
+    async (code: string): Promise<void> => {
+      if (!account) throw circleError('circle/not-allowed')
+      await circles.acceptInvite({
+        uid: account.uid,
+        name: account.name,
+        accountRole: account.role,
+        currentCircleId: circleId ?? null,
+        code,
+        consentVersion: CIRCLE_CONSENT_VERSION,
+      })
+    },
+    [account, circleId]
+  )
+
+  const cancelPending = useCallback(async (): Promise<void> => {
+    if (!circleId || !membership || membership.status !== 'pendente') return
+    await circles.leaveCircle(circleId, membership)
+  }, [circleId, membership])
+
   const circleLoading =
     !!uid &&
     (circleId === undefined ||
@@ -175,8 +309,30 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       membership: membership ?? null,
       members,
       createCircle,
+      invites,
+      createInvite,
+      revokeInvite,
+      approveMember,
+      rejectMember,
+      lookupInvite,
+      acceptInvite,
+      cancelPending,
     }),
-    [circleLoading, circle, membership, members, createCircle]
+    [
+      circleLoading,
+      circle,
+      membership,
+      members,
+      createCircle,
+      invites,
+      createInvite,
+      revokeInvite,
+      approveMember,
+      rejectMember,
+      lookupInvite,
+      acceptInvite,
+      cancelPending,
+    ]
   )
 
   return <CircleContext.Provider value={value}>{children}</CircleContext.Provider>

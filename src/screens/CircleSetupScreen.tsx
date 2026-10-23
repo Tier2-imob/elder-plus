@@ -24,6 +24,23 @@ import { Logo } from '@/components/Logo'
  */
 export type CircleSetupMode = 'loading' | 'create' | 'pending' | 'partner'
 
+/** What the acceptance step shows about an invite. */
+export type InvitePreview = {
+  code: string
+  circleName: string
+  invitedByName: string
+  roleLabel: string
+  /** Labels of what the person will see / edit. */
+  canSee: string[]
+  canEdit: string[]
+  canManage: boolean
+  expiresLabel: string
+}
+
+const JOIN_CONSENT = (circleName: string) =>
+  `Concordo em acessar os dados de rotina e de saúde de ${circleName} apenas para ajudar no cuidado, ` +
+  'conforme as permissões concedidas, e entendo que meu acesso pode ser revogado a qualquer momento.'
+
 const CONSENT_TEXT = {
   elder:
     'Autorizo o registro dos meus dados de rotina e de saúde no Elder+ e o compartilhamento com as pessoas que eu convidar, conforme as permissões que eu definir.',
@@ -43,13 +60,232 @@ function Feature({ icon, text }: { icon: keyof typeof MaterialIcons.glyphMap; te
   )
 }
 
+function ConsentCheckbox({
+  text,
+  checked,
+  invalid,
+  onToggle,
+}: {
+  text: string
+  checked: boolean
+  invalid: boolean
+  onToggle: () => void
+}) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      accessibilityLabel={text}
+      onPress={onToggle}
+      className="min-h-[56px] flex-row items-start gap-3 mt-6 px-1 py-2 active:opacity-70"
+    >
+      <View
+        className={`w-7 h-7 rounded-lg items-center justify-center border-2 ${
+          checked ? 'bg-navy border-navy' : invalid ? 'bg-white border-terracotta' : 'bg-white border-hairline'
+        }`}
+      >
+        {checked ? <MaterialIcons name="check" size={20} color="#FFFFFF" /> : null}
+      </View>
+      <Text className="flex-1 font-hanken text-ink text-[15px] leading-[22px]">{text}</Text>
+    </Pressable>
+  )
+}
+
+function PrimaryButton({
+  label,
+  icon,
+  busy,
+  onPress,
+}: {
+  label: string
+  icon: keyof typeof MaterialIcons.glyphMap
+  busy: boolean
+  onPress: () => void
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ busy, disabled: busy }}
+      disabled={busy}
+      onPress={onPress}
+      className="min-h-[56px] rounded-2xl flex-row items-center justify-center gap-2.5 bg-navy mt-5 px-4 active:opacity-90"
+    >
+      {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <MaterialIcons name={icon} size={23} color="#FFFFFF" />}
+      <Text className="font-hanken-bold text-lg text-white">{label}</Text>
+    </Pressable>
+  )
+}
+
+function ErrorText({ message }: { message?: string }) {
+  return message ? (
+    <Text
+      accessibilityRole="alert"
+      accessibilityLiveRegion="assertive"
+      className="font-hanken-medium text-terracotta text-[15px] leading-[22px] text-center mt-5"
+    >
+      {message}
+    </Text>
+  ) : null
+}
+
+function SecondaryLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      className="min-h-[56px] items-center justify-center mt-3 rounded-2xl active:opacity-70"
+      style={{ backgroundColor: 'rgba(17,55,92,0.06)' }}
+    >
+      <Text className="font-hanken-bold text-base text-navy">{label}</Text>
+    </Pressable>
+  )
+}
+
+/** "Tenho um convite": type the code, review what the invite grants, consent and join. */
+function JoinForm({
+  onLookup,
+  onAccept,
+  onBack,
+}: {
+  onLookup: (code: string) => Promise<InvitePreview>
+  onAccept: (code: string) => Promise<void>
+  onBack: () => void
+}) {
+  const [code, setCode] = useState('')
+  const [preview, setPreview] = useState<InvitePreview | null>(null)
+  const [accepted, setAccepted] = useState(false)
+  const [attempted, setAttempted] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | undefined>(undefined)
+
+  async function lookup() {
+    if (busy) return
+    if (!code.trim()) {
+      setError('Digite o código que você recebeu.')
+      return
+    }
+    setBusy(true)
+    setError(undefined)
+    try {
+      setPreview(await onLookup(code))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível encontrar o convite.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function accept() {
+    if (busy || !preview) return
+    setAttempted(true)
+    if (!accepted) return
+    setBusy(true)
+    setError(undefined)
+    try {
+      await onAccept(preview.code)
+      // Success: the user becomes a pending member and the parent shows "Aguardando aprovação".
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível entrar no círculo.')
+      setBusy(false)
+    }
+  }
+
+  if (!preview) {
+    return (
+      <View>
+        <Text accessibilityRole="header" className="font-hanken-extrabold text-navy text-[28px] leading-[34px] mb-3">
+          Entrar com convite
+        </Text>
+        <Text className="font-hanken text-muted text-[17px] leading-6 mb-6">
+          Digite o código que a pessoa que cuida do círculo enviou para você.
+        </Text>
+        <Text className="font-hanken-medium text-navy text-[15px] mb-2">Código do convite</Text>
+        <TextInput
+          value={code}
+          onChangeText={setCode}
+          placeholder="ELDER-XXXX-XXXX"
+          placeholderTextColor="#6B7A85"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          autoFocus
+          returnKeyType="go"
+          onSubmitEditing={lookup}
+          accessibilityLabel="Código do convite"
+          className="min-h-[56px] rounded-2xl border-[1.6px] border-hairline bg-white px-4 font-hanken-bold text-[19px] tracking-widest text-ink"
+        />
+        <ErrorText message={error} />
+        <PrimaryButton label="Continuar" icon="arrow-forward" busy={busy} onPress={lookup} />
+        <SecondaryLink label="Voltar" onPress={onBack} />
+      </View>
+    )
+  }
+
+  const consent = JOIN_CONSENT(preview.circleName)
+  return (
+    <View>
+      <Text accessibilityRole="header" className="font-hanken-extrabold text-navy text-[28px] leading-[34px] mb-3">
+        Círculo de {preview.circleName}
+      </Text>
+      <Text className="font-hanken text-muted text-[17px] leading-6 mb-5">
+        {preview.invitedByName} convidou você como {preview.roleLabel}.
+      </Text>
+
+      <View className="rounded-3xl border border-hairline bg-white p-5">
+        <Text className="font-hanken-bold text-navy text-base mb-2">Você vai poder</Text>
+        {[
+          ...preview.canSee.map((label) => ({ icon: 'visibility' as const, text: `Ver ${label}` })),
+          ...preview.canEdit.map((label) => ({ icon: 'edit' as const, text: `Editar ${label}` })),
+          ...(preview.canManage ? [{ icon: 'group' as const, text: 'Convidar e aprovar pessoas' }] : []),
+        ].map((item) => (
+          <View key={item.text} className="flex-row items-center gap-3 py-1.5">
+            <MaterialIcons name={item.icon} size={20} color="#11375C" />
+            <Text className="font-hanken text-ink text-base">{item.text}</Text>
+          </View>
+        ))}
+        <Text className="font-hanken text-muted text-sm mt-3">Convite válido até {preview.expiresLabel}.</Text>
+      </View>
+
+      <ConsentCheckbox
+        text={consent}
+        checked={accepted}
+        invalid={attempted && !accepted}
+        onToggle={() => setAccepted((prev) => !prev)}
+      />
+      {attempted && !accepted ? (
+        <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracotta text-sm leading-5 mt-1 px-1">
+          Para entrar, confirme a declaração acima.
+        </Text>
+      ) : null}
+
+      <ErrorText message={error} />
+      <PrimaryButton label="Entrar no círculo" icon="group-add" busy={busy} onPress={accept} />
+      <Text className="font-hanken text-muted text-sm leading-5 text-center mt-4 px-2">
+        Depois de entrar, um administrador do círculo precisa aprovar seu acesso.
+      </Text>
+      <SecondaryLink
+        label="Usar outro código"
+        onPress={() => {
+          setPreview(null)
+          setAccepted(false)
+          setAttempted(false)
+          setError(undefined)
+        }}
+      />
+    </View>
+  )
+}
+
 function CreateForm({
   isElder,
   onCreate,
+  onHaveInvite,
 }: {
   isElder: boolean
   /** Rejects with a user-facing PT message on failure. */
   onCreate: (subjectName?: string) => Promise<void>
+  onHaveInvite: () => void
 }) {
   const [subjectName, setSubjectName] = useState('')
   const [accepted, setAccepted] = useState(false)
@@ -167,14 +403,25 @@ function CreateForm({
         <Text className="font-hanken-bold text-lg text-white">Criar círculo</Text>
       </Pressable>
 
-      <Text className="font-hanken text-muted text-sm leading-5 text-center mt-5 px-2">
-        Recebeu um convite de outra pessoa? A entrada por código chega na próxima versão do app.
+      <Text className="font-hanken text-muted text-[15px] leading-[22px] text-center mt-6 px-2">
+        Alguém já cuida de um círculo e convidou você?
       </Text>
+      <SecondaryLink label="Tenho um convite" onPress={onHaveInvite} />
     </View>
   )
 }
 
-function Message({ icon, title, text }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; text: string }) {
+function Message({
+  icon,
+  title,
+  text,
+  children,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap
+  title: string
+  text: string
+  children?: React.ReactNode
+}) {
   return (
     <View className="items-center pt-10">
       <View className="w-20 h-20 rounded-3xl items-center justify-center bg-navy/10 mb-6">
@@ -184,6 +431,7 @@ function Message({ icon, title, text }: { icon: keyof typeof MaterialIcons.glyph
         {title}
       </Text>
       <Text className="font-hanken text-muted text-[17px] leading-6 text-center px-2">{text}</Text>
+      {children ? <View className="self-stretch mt-6">{children}</View> : null}
     </View>
   )
 }
@@ -193,6 +441,9 @@ export function CircleSetupScreen({
   isElder = false,
   circleName,
   onCreate,
+  onLookupInvite,
+  onAcceptInvite,
+  onCancelPending,
   onNavigate,
   topInset = 0,
   bottomInset = 0,
@@ -203,10 +454,31 @@ export function CircleSetupScreen({
   /** Assisted person's name, shown while pending. */
   circleName?: string
   onCreate: (subjectName?: string) => Promise<void>
+  /** Reject with user-facing PT messages. */
+  onLookupInvite: (code: string) => Promise<InvitePreview>
+  onAcceptInvite: (code: string) => Promise<void>
+  /** Withdraw a pending request (absent when it can't be withdrawn). */
+  onCancelPending?: () => Promise<void>
   onNavigate: (key: string) => void
   topInset?: number
   bottomInset?: number
 }) {
+  const [joining, setJoining] = useState(false)
+  const [cancelBusy, setCancelBusy] = useState(false)
+  const [cancelError, setCancelError] = useState<string | undefined>(undefined)
+
+  async function cancelPending() {
+    if (!onCancelPending || cancelBusy) return
+    setCancelBusy(true)
+    setCancelError(undefined)
+    try {
+      await onCancelPending()
+    } catch (e) {
+      setCancelError(e instanceof Error ? e.message : 'Não foi possível cancelar o pedido.')
+      setCancelBusy(false)
+    }
+  }
+
   return (
     <View className="flex-1 bg-offwhite">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
@@ -222,13 +494,40 @@ export function CircleSetupScreen({
               <ActivityIndicator size="large" color="#11375C" />
             </View>
           ) : mode === 'create' ? (
-            <CreateForm isElder={isElder} onCreate={onCreate} />
+            joining ? (
+              <JoinForm onLookup={onLookupInvite} onAccept={onAcceptInvite} onBack={() => setJoining(false)} />
+            ) : (
+              <CreateForm isElder={isElder} onCreate={onCreate} onHaveInvite={() => setJoining(true)} />
+            )
           ) : mode === 'pending' ? (
             <Message
               icon="hourglass-top"
               title="Aguardando aprovação"
               text={`Você aceitou o convite${circleName ? ` para o círculo de ${circleName}` : ''}. Assim que um administrador aprovar sua entrada, a rotina e a saúde aparecem aqui.`}
-            />
+            >
+              {onCancelPending ? (
+                <>
+                  <ErrorText message={cancelError} />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancelar meu pedido de entrada"
+                    accessibilityState={{ busy: cancelBusy, disabled: cancelBusy }}
+                    disabled={cancelBusy}
+                    onPress={cancelPending}
+                    className="min-h-[56px] items-center justify-center rounded-2xl mt-3 active:opacity-70"
+                    style={{ backgroundColor: 'rgba(192,57,43,0.08)' }}
+                  >
+                    {cancelBusy ? (
+                      <ActivityIndicator size="small" color="#C0392B" />
+                    ) : (
+                      <Text className="font-hanken-bold text-base" style={{ color: '#C0392B' }}>
+                        Cancelar pedido
+                      </Text>
+                    )}
+                  </Pressable>
+                </>
+              ) : null}
+            </Message>
           ) : (
             <Message
               icon="storefront"

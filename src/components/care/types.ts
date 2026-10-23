@@ -155,6 +155,15 @@ export type FamilyMember = {
   permissions: PermissionKey[]
 }
 
+/** An open invite as the Familia tab lists it. */
+export type InviteSummary = {
+  code: string
+  /** "Familiar", "Profissional — Geriatra"... */
+  roleLabel: string
+  /** "23/10" */
+  expiresLabel: string
+}
+
 export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'ver-rotina': 'Ver rotina',
   'editar-rotina': 'Editar rotina',

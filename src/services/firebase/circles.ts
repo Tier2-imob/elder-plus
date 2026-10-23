@@ -221,7 +221,11 @@ export async function createInvite(input: {
   label?: string
   permissions: PermissionKey[]
 }): Promise<string> {
-  const permissions = withImpliedPermissions(input.role === 'titular' ? ALL_PERMISSIONS : input.permissions)
+  // `emergencia` is never granted by invite: it needs a phone and counts against the 3-contact
+  // limit, which the accept batch cannot update — it is set later when editing the member.
+  const permissions = withImpliedPermissions(
+    (input.role === 'titular' ? ALL_PERMISSIONS : input.permissions).filter((p) => p !== 'emergencia')
+  )
   const blocked = checkCanInvite(input.actor, input.circle, input.role, permissions)
   if (blocked) throw circleError(blocked)
 
