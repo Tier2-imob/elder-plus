@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { useRef, useState } from 'react'
+import { Modal, Pressable, Text, View } from 'react-native'
 
 import { TaskDetailsModal } from './TaskDetailsModal'
 import { GhostButton, MemberOptions, PickerModal, TimeOptions } from './TaskPickers'
@@ -9,8 +9,71 @@ import {
   TASK_CATEGORIES,
   type FamilyMember,
   type Task,
+  type TaskCategory,
   type TaskStatus,
 } from './types'
+
+type Rect = { x: number; y: number; width: number; height: number }
+
+/**
+ * Delete mode for a card: a transparent full-screen layer (a Modal, so it also covers the header,
+ * the tabs and the FloatingNav) with a translucent red box drawn exactly over the card and the
+ * delete button in its centre. Any tap outside the button cancels.
+ */
+function DeleteOverlay({
+  rect,
+  title,
+  onDelete,
+  onDismiss,
+}: {
+  rect: Rect
+  title: string
+  onDelete: () => void
+  onDismiss: () => void
+}) {
+  return (
+    // Translucent bars: the Modal then spans the whole window, matching measureInWindow coordinates.
+    <Modal
+      transparent
+      visible
+      animationType="fade"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onDismiss}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Cancelar exclusão"
+        onPress={onDismiss}
+        style={{ flex: 1 }}
+      >
+        <View
+          pointerEvents="box-none"
+          className="absolute items-center justify-center rounded-3xl"
+          style={{
+            top: rect.y,
+            left: rect.x,
+            width: rect.width,
+            height: rect.height,
+            backgroundColor: 'rgba(192,57,43,0.55)',
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Excluir a tarefa ${title}`}
+            onPress={onDelete}
+            className="min-h-[56px] flex-row items-center gap-2 px-6 rounded-full bg-white active:opacity-80"
+          >
+            <MaterialIcons name="delete-outline" size={22} color="#C0392B" />
+            <Text className="font-hanken-bold text-base" style={{ color: '#C0392B' }}>
+              Excluir tarefa
+            </Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  )
+}
 
 export function TaskCard({
   task,
@@ -19,6 +82,8 @@ export function TaskCard({
   onToggleDone,
   onReschedule,
   onAssign,
+  onChangeCategory,
+  onDelete,
 }: {
   task: Task
   done: boolean
@@ -26,10 +91,20 @@ export function TaskCard({
   onToggleDone: () => void
   onReschedule: (time: string) => void
   onAssign: (assignee: string) => void
+  onChangeCategory?: (category: TaskCategory) => void
+  /** Enables delete mode (touch and hold the card). */
+  onDelete?: () => void
 }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [deleteRect, setDeleteRect] = useState<Rect | null>(null)
+  const cardRef = useRef<View>(null)
+
+  function enterDeleteMode() {
+    if (!onDelete) return
+    cardRef.current?.measureInWindow((x, y, width, height) => setDeleteRect({ x, y, width, height }))
+  }
 
   const category = TASK_CATEGORIES[task.category ?? 'outro']
   const status: TaskStatus = done ? 'concluida' : (task.status ?? 'pendente')
@@ -43,8 +118,11 @@ export function TaskCard({
         accessible={false} keeps those buttons reachable by screen readers; the top-right button is
         the accessible entry point for the details. */}
     <Pressable
+      ref={cardRef}
       accessible={false}
       onPress={() => setDetailsOpen(true)}
+      onLongPress={onDelete ? enterDeleteMode : undefined}
+      delayLongPress={450}
       className="rounded-3xl border mb-4 p-5 active:opacity-90"
       style={{
         borderColor: done ? '#C8E6C9' : '#E4DCD3',
@@ -80,6 +158,12 @@ export function TaskCard({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Ver detalhes de ${task.title}`}
+          // Screen readers can't reliably "touch and hold": delete is offered as an action here.
+          accessibilityHint={onDelete ? 'Toque e segure o card para excluir a tarefa' : undefined}
+          accessibilityActions={onDelete ? [{ name: 'delete', label: 'Excluir tarefa' }] : undefined}
+          onAccessibilityAction={(e) => {
+            if (e.nativeEvent.actionName === 'delete') enterDeleteMode()
+          }}
           onPress={() => setDetailsOpen(true)}
           hitSlop={8}
           className="w-8 h-8 rounded-full items-center justify-center active:opacity-70"
@@ -185,7 +269,20 @@ export function TaskCard({
         onToggleDone={onToggleDone}
         onReschedule={onReschedule}
         onAssign={onAssign}
+        onChangeCategory={onChangeCategory}
       />
+
+      {deleteRect && onDelete ? (
+        <DeleteOverlay
+          rect={deleteRect}
+          title={task.title}
+          onDismiss={() => setDeleteRect(null)}
+          onDelete={() => {
+            setDeleteRect(null)
+            onDelete()
+          }}
+        />
+      ) : null}
     </>
   )
 }

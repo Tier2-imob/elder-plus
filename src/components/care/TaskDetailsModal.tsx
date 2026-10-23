@@ -2,12 +2,13 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useState } from 'react'
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 
-import { CancelButton, GhostButton, MemberOptions, TimeOptions } from './TaskPickers'
+import { CancelButton, Chip, GhostButton, MemberOptions, ModalSheet, TimeOptions } from './TaskPickers'
 import {
   STATUS_META,
   TASK_CATEGORIES,
   type FamilyMember,
   type Task,
+  type TaskCategory,
   type TaskStatus,
 } from './types'
 
@@ -38,8 +39,9 @@ function DetailRow({ icon, label, value, muted = false }: {
 }
 
 /**
- * Task details. Adiar/Atribuir swap the modal's content in place instead of opening a second Modal:
- * iOS ignores presenting a Modal while another one is still on screen.
+ * Task details. Adiar/Atribuir/Categoria swap the modal's content in place instead of opening a
+ * second Modal: iOS ignores presenting a Modal while another one is still on screen. A tap outside
+ * the card closes it.
  */
 export function TaskDetailsModal({
   visible,
@@ -50,6 +52,7 @@ export function TaskDetailsModal({
   onToggleDone,
   onReschedule,
   onAssign,
+  onChangeCategory,
 }: {
   visible: boolean
   task: Task
@@ -59,8 +62,10 @@ export function TaskDetailsModal({
   onToggleDone: () => void
   onReschedule: (time: string) => void
   onAssign: (assignee: string) => void
+  /** Omitted: the category is shown but not editable. */
+  onChangeCategory?: (category: TaskCategory) => void
 }) {
-  const [view, setView] = useState<'details' | 'reschedule' | 'assign'>('details')
+  const [view, setView] = useState<'details' | 'reschedule' | 'assign' | 'category'>('details')
 
   const category = TASK_CATEGORIES[task.category ?? 'outro']
   const status: TaskStatus = done ? 'concluida' : (task.status ?? 'pendente')
@@ -75,9 +80,27 @@ export function TaskDetailsModal({
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={close}>
-      <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: 'rgba(22,40,58,0.45)' }}>
-        <View className="w-full rounded-3xl bg-white p-5" style={{ maxHeight: '85%' }}>
-          {view === 'reschedule' ? (
+      <ModalSheet onClose={close} maxHeight="85%">
+          {view === 'category' && onChangeCategory ? (
+            <>
+              <Text className="font-hanken-extrabold text-navy text-lg mb-4">Categoria</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {(Object.keys(TASK_CATEGORIES) as TaskCategory[]).map((key) => (
+                  <Chip
+                    key={key}
+                    label={TASK_CATEGORIES[key].label}
+                    color={TASK_CATEGORIES[key].color}
+                    active={(task.category ?? 'outro') === key}
+                    onPress={() => {
+                      onChangeCategory(key)
+                      setView('details')
+                    }}
+                  />
+                ))}
+              </View>
+              <CancelButton label="Voltar" onPress={() => setView('details')} />
+            </>
+          ) : view === 'reschedule' ? (
             <>
               <Text className="font-hanken-extrabold text-navy text-lg mb-4">Adiar para</Text>
               <TimeOptions
@@ -180,13 +203,15 @@ export function TaskDetailsModal({
                 </Pressable>
                 <GhostButton label="Adiar" icon="access-time" onPress={() => setView('reschedule')} />
                 <GhostButton label="Atribuir" icon="person-add" onPress={() => setView('assign')} />
+                {onChangeCategory ? (
+                  <GhostButton label="Categoria" icon="label-outline" onPress={() => setView('category')} />
+                ) : null}
               </View>
 
               <CancelButton label="Fechar" onPress={close} />
             </>
           )}
-        </View>
-      </View>
+      </ModalSheet>
     </Modal>
   )
 }

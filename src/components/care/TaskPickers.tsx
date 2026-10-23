@@ -72,6 +72,34 @@ export function CancelButton({ label = 'Cancelar', onPress }: { label?: string; 
   )
 }
 
+/**
+ * Modal backdrop + centred card. A tap on the dimmed area outside the card closes it; the card
+ * itself is wrapped in a no-op Pressable so taps on its non-interactive parts don't bubble up.
+ */
+export function ModalSheet({
+  onClose,
+  maxHeight,
+  children,
+}: {
+  onClose: () => void
+  maxHeight?: `${number}%`
+  children: React.ReactNode
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Fechar"
+      onPress={onClose}
+      className="flex-1 items-center justify-center px-6"
+      style={{ backgroundColor: 'rgba(22,40,58,0.45)' }}
+    >
+      <Pressable accessible={false} onPress={() => {}} className="w-full rounded-3xl bg-white p-5" style={{ maxHeight }}>
+        {children}
+      </Pressable>
+    </Pressable>
+  )
+}
+
 export function PickerModal({
   visible,
   title,
@@ -85,13 +113,11 @@ export function PickerModal({
 }) {
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: 'rgba(22,40,58,0.45)' }}>
-        <View className="w-full rounded-3xl bg-white p-5">
-          <Text className="font-hanken-extrabold text-navy text-lg mb-4">{title}</Text>
-          {children}
-          <CancelButton onPress={onClose} />
-        </View>
-      </View>
+      <ModalSheet onClose={onClose}>
+        <Text className="font-hanken-extrabold text-navy text-lg mb-4">{title}</Text>
+        {children}
+        <CancelButton onPress={onClose} />
+      </ModalSheet>
     </Modal>
   )
 }

@@ -13,6 +13,7 @@ import type {
   MedicationInput,
   NewTaskInput,
   Task,
+  TaskCategory,
 } from '@/components/care/types'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useState } from 'react'
@@ -51,6 +52,8 @@ export function CareScreen({
   onToggleDone,
   onReschedule,
   onAssign,
+  onChangeTaskCategory,
+  onDeleteTask,
   onCreateTask,
   onRecordDose,
   onUndoDose,
@@ -78,6 +81,8 @@ export function CareScreen({
   onToggleDone: (taskId: string, isDone: boolean) => void
   onReschedule: (taskId: string, time: string) => void
   onAssign: (taskId: string, assignee: string) => void
+  onChangeTaskCategory: (taskId: string, category: TaskCategory) => void
+  onDeleteTask: (taskId: string) => void
   /** Persists a new task; rejects on failure so the form can show the error. */
   onCreateTask: (input: NewTaskInput) => Promise<void>
   onRecordDose: (medicationId: string, time: string, taken: boolean) => void
@@ -198,6 +203,8 @@ export function CareScreen({
                 onToggleDone={(id) => onToggleDone(id, doneIds.has(id))}
                 onReschedule={onReschedule}
                 onAssign={onAssign}
+                onChangeCategory={onChangeTaskCategory}
+                onDelete={onDeleteTask}
               />
             </>
           )

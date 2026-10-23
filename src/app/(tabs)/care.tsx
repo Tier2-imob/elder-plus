@@ -14,8 +14,18 @@ export default function Care() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { account } = useAccount()
-  const { tasks, doneIds, tasksLoading, create, complete, uncomplete, rescheduleTime, assignTo } =
-    useCareTasks()
+  const {
+    tasks,
+    doneIds,
+    tasksLoading,
+    create,
+    complete,
+    uncomplete,
+    rescheduleTime,
+    assignTo,
+    changeCategory,
+    remove,
+  } = useCareTasks()
   const { circleLoading, circle, membership, members, createCircle } = useCircle()
   const meds = useMedications(
     !circleLoading && circle && hasPermission(membership, 'ver-saude') ? circle.id : undefined
@@ -79,6 +89,8 @@ export default function Care() {
       }}
       onReschedule={rescheduleTime}
       onAssign={assignTo}
+      onChangeTaskCategory={changeCategory}
+      onDeleteTask={remove}
       onCreateTask={(input) => create(input, account?.name ?? '')}
       onRecordDose={meds.recordDose}
       onUndoDose={meds.undoDose}

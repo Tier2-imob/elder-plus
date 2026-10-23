@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -122,4 +123,18 @@ export async function rescheduleTaskTime(
 /** Assign a family member as the task's responsible person. */
 export async function assignTask(circleId: string, taskId: string, assignee: string): Promise<void> {
   await updateDoc(doc(db, 'circles', circleId, 'tasks', taskId), { assignee })
+}
+
+/** Change a task's category; the icon follows it (TASK_CATEGORIES[category].icon). */
+export async function updateTaskCategory(
+  circleId: string,
+  taskId: string,
+  category: string,
+  icon: string
+): Promise<void> {
+  await updateDoc(doc(db, 'circles', circleId, 'tasks', taskId), { category, icon })
+}
+
+export async function deleteTask(circleId: string, taskId: string): Promise<void> {
+  await deleteDoc(doc(db, 'circles', circleId, 'tasks', taskId))
 }

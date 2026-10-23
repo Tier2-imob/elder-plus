@@ -71,6 +71,8 @@ type CareTasksValue = {
   uncomplete: (taskId: string) => Promise<void>
   rescheduleTime: (taskId: string, time: string) => Promise<void>
   assignTo: (taskId: string, assignee: string) => Promise<void>
+  changeCategory: (taskId: string, category: TaskCategory) => Promise<void>
+  remove: (taskId: string) => Promise<void>
 }
 
 const CareTasksContext = createContext<CareTasksValue | undefined>(undefined)
@@ -190,6 +192,31 @@ export function CareTasksProvider({ children }: { children: ReactNode }) {
     [circleId]
   )
 
+  const changeCategory = useCallback(
+    async (taskId: string, category: TaskCategory): Promise<void> => {
+      if (!circleId) return
+      try {
+        await tasks.updateTaskCategory(circleId, taskId, category, TASK_CATEGORIES[category].icon)
+      } catch (e) {
+        console.warn('updateTaskCategory failed', e)
+      }
+    },
+    [circleId]
+  )
+
+  // The snapshot drops the card at once (latency compensation) and restores it if the server refuses.
+  const remove = useCallback(
+    async (taskId: string): Promise<void> => {
+      if (!circleId) return
+      try {
+        await tasks.deleteTask(circleId, taskId)
+      } catch (e) {
+        console.warn('deleteTask failed', e)
+      }
+    },
+    [circleId]
+  )
+
   const create = useCallback(
     async (input: NewTaskInput, createdByName: string): Promise<void> => {
       if (!circleId || !membership) throw new Error('No circle to create the task in')
@@ -212,8 +239,10 @@ export function CareTasksProvider({ children }: { children: ReactNode }) {
       uncomplete,
       rescheduleTime,
       assignTo,
+      changeCategory,
+      remove,
     }),
-    [docs, tasksLoading, create, complete, uncomplete, rescheduleTime, assignTo]
+    [docs, tasksLoading, create, complete, uncomplete, rescheduleTime, assignTo, changeCategory, remove]
   )
 
   return <CareTasksContext.Provider value={value}>{children}</CareTasksContext.Provider>

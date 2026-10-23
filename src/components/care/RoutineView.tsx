@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { Text, View } from 'react-native'
 
 import { TaskCard } from './TaskCard'
-import { TODAY_KEY, WEEK_DAYS, type FamilyMember, type Task } from './types'
+import { TODAY_KEY, WEEK_DAYS, type FamilyMember, type Task, type TaskCategory } from './types'
 
 // Tasks of a day in time order. Times are zero-padded "HH:MM", so string order is time order.
 function byDay(tasks: Task[], dayKey: string) {
@@ -16,6 +16,8 @@ type ToggleProps = {
   onToggleDone: (id: string) => void
   onReschedule: (id: string, time: string) => void
   onAssign: (id: string, assignee: string) => void
+  onChangeCategory: (id: string, category: TaskCategory) => void
+  onDelete: (id: string) => void
 }
 
 function EmptyDay({ label }: { label: string }) {
@@ -37,6 +39,8 @@ export function RoutineView({
   onToggleDone,
   onReschedule,
   onAssign,
+  onChangeCategory,
+  onDelete,
 }: ToggleProps & { mode: 'today' | 'week' }) {
   const cardProps = (task: Task) => ({
     task,
@@ -45,6 +49,8 @@ export function RoutineView({
     onToggleDone: () => onToggleDone(task.id),
     onReschedule: (time: string) => onReschedule(task.id, time),
     onAssign: (assignee: string) => onAssign(task.id, assignee),
+    onChangeCategory: (category: TaskCategory) => onChangeCategory(task.id, category),
+    onDelete: () => onDelete(task.id),
   })
 
   if (mode === 'today') {

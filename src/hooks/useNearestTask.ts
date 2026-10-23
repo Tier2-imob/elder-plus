@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import type { Task } from '@/components/care/types'
+import type { Task, TaskCategory } from '@/components/care/types'
 import { useCareTasks } from '@/state/care-tasks-context'
 
 /**
@@ -61,7 +61,7 @@ function pickNearestPending(tasks: Task[], doneIds: Set<string>): Task | null {
  * from CareTasksProvider, so it is the same live data Cuidados shows. `uid` only keys the pin.
  */
 export function useNearestTask(uid: string | undefined) {
-  const { tasks, doneIds, tasksLoading, complete, uncomplete, rescheduleTime, assignTo } =
+  const { tasks, doneIds, tasksLoading, complete, uncomplete, rescheduleTime, assignTo, changeCategory, remove } =
     useCareTasks()
 
   // Once the user acts on the card, keep showing that task (done or rescheduled) instead of jumping
@@ -89,5 +89,11 @@ export function useNearestTask(uid: string | undefined) {
       pin(id)
       assignTo(id, assignee)
     },
+    changeCategory: (id: string, category: TaskCategory) => {
+      pin(id)
+      changeCategory(id, category)
+    },
+    // No pin: once deleted, the card moves on to the next pending task.
+    remove,
   }
 }

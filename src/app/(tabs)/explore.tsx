@@ -17,6 +17,8 @@ export default function Explore() {
     toggleDone,
     reschedule,
     assign,
+    changeCategory,
+    remove,
   } = useNearestTask(account?.uid)
 
   return (
@@ -30,6 +32,8 @@ export default function Explore() {
       onToggleTaskDone={toggleDone}
       onRescheduleTask={reschedule}
       onAssignTask={assign}
+      onChangeTaskCategory={changeCategory}
+      onDeleteTask={remove}
       topInset={insets.top}
       bottomInset={insets.bottom}
       onLogout={async () => {

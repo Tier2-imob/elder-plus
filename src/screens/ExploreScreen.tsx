@@ -2,7 +2,7 @@ import { FloatingNav } from '@/components/FloatingNav'
 import { Logo } from '@/components/Logo'
 import { MapEmbed } from '@/components/MapEmbed'
 import { TaskCard } from '@/components/care/TaskCard'
-import type { FamilyMember, Task } from '@/components/care/types'
+import type { FamilyMember, Task, TaskCategory } from '@/components/care/types'
 import { CATEGORY_DATA } from '@/data/discover-data'
 import type { ServiceItem } from '@/screens/DiscoverScreen'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
@@ -52,6 +52,8 @@ export function ExploreScreen({
   onToggleTaskDone,
   onRescheduleTask,
   onAssignTask,
+  onChangeTaskCategory,
+  onDeleteTask,
   topInset = 0,
   bottomInset = 0,
   onSelectCategory,
@@ -69,6 +71,8 @@ export function ExploreScreen({
   onToggleTaskDone?: (taskId: string) => void
   onRescheduleTask?: (taskId: string, time: string) => void
   onAssignTask?: (taskId: string, assignee: string) => void
+  onChangeTaskCategory?: (taskId: string, category: TaskCategory) => void
+  onDeleteTask?: (taskId: string) => void
   topInset?: number
   bottomInset?: number
   onSelectCategory: (category: Category) => void
@@ -247,6 +251,10 @@ export function ExploreScreen({
                 onToggleDone={() => onToggleTaskDone?.(nearestTask.id)}
                 onReschedule={(time) => onRescheduleTask?.(nearestTask.id, time)}
                 onAssign={(assignee) => onAssignTask?.(nearestTask.id, assignee)}
+                onChangeCategory={
+                  onChangeTaskCategory ? (category) => onChangeTaskCategory(nearestTask.id, category) : undefined
+                }
+                onDelete={onDeleteTask ? () => onDeleteTask(nearestTask.id) : undefined}
               />
             ) : (
               <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
