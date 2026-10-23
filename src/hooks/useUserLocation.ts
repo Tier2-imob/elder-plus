@@ -1,6 +1,22 @@
-import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking } from 'react-native';
+
+type LocationModule = typeof import('expo-location')
+
+/**
+ * expo-location is a native module: in a binary built before it was added, importing it throws
+ * at load time and takes the whole Explore route down. Load it defensively so such a build just
+ * shows the map without centring ('unsupported') until a new build is installed.
+ */
+const Location: LocationModule | null = (() => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-location') as LocationModule
+  } catch (e) {
+    console.warn('expo-location unavailable in this build', e)
+    return null
+  }
+})()
 
 export type Coords = { latitude: number; longitude: number }
 
@@ -9,8 +25,9 @@ export type Coords = { latitude: number; longitude: number }
  * - `ready`: `coords` holds the user's position
  * - `denied`: permission refused (`enable` asks again or opens the system settings)
  * - `unavailable`: granted, but no position could be read (GPS off, no signal)
+ * - `unsupported`: this app build has no location module (needs a new native build)
  */
-export type LocationStatus = 'locating' | 'ready' | 'denied' | 'unavailable'
+export type LocationStatus = 'locating' | 'ready' | 'denied' | 'unavailable' | 'unsupported'
 
 /**
  * ~110 m precision: enough to centre a map on "services near you", without handing the exact
@@ -30,6 +47,7 @@ type Reading = { status: LocationStatus; coords: Coords | null; canAskAgain: boo
  * position right away (if any) while the fresh reading is still on its way. Never throws.
  */
 async function readLocation(onLastKnown: (coords: Coords) => void): Promise<Reading> {
+  if (!Location) return { status: 'unsupported', coords: null, canAskAgain: false }
   let canAskAgain = true
   let coords: Coords | null = null
   try {
@@ -58,7 +76,7 @@ async function readLocation(onLastKnown: (coords: Coords) => void): Promise<Read
  */
 export function useUserLocation() {
   const [coords, setCoords] = useState<Coords | null>(null)
-  const [status, setStatus] = useState<LocationStatus>('locating')
+  const [status, setStatus] = useState<LocationStatus>(Location ? 'locating' : 'unsupported')
   // Bumped by `enable` to run the reading again.
   const [attempt, setAttempt] = useState(0)
   const canAskAgainRef = useRef(true)
@@ -82,6 +100,7 @@ export function useUserLocation() {
 
   /** Ask again; once the user chose "don't ask again", only the system settings can grant it. */
   const enable = useCallback(() => {
+    if (!Location) return
     if (!canAskAgainRef.current) {
       void Linking.openSettings()
       return

@@ -81,7 +81,8 @@ export function ExploreScreen({
   onOpenDocuments?: () => void
   /** User's approximate position; the map centres on it when present. */
   mapCenter?: { latitude: number; longitude: number } | null
-  locationStatus?: 'locating' | 'ready' | 'denied' | 'unavailable'
+  /** `unsupported` (build without the location module) just shows the map without centring. */
+  locationStatus?: 'locating' | 'ready' | 'denied' | 'unavailable' | 'unsupported'
   /** Ask for the location permission again (or open the settings). */
   onEnableLocation?: () => void
 }) {
