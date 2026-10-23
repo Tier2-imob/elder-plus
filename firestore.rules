@@ -1,0 +1,339 @@
+rules_version = '2';
+
+// Elder+ — regras de segurança do Firestore.
+// Publicar pelo console (Firestore → Regras) ou `firebase deploy --only firestore:rules`.
+// Antes de publicar: comparar com as regras atuais do console e testar no Emulator.
+//
+// Círculo de cuidado (ver .agents/tasks/family-circle-plan.md):
+//   circles/{circleId}                 dados do círculo (titular nominal ou com conta)
+//   circles/{circleId}/members/{uid}   papel, permissões, status pendente|ativo
+//   invites/{code}                     convite de uso único, validade de 7 dias
+//   users/{uid}.circleId               "um círculo por usuário"
+// As escritas com várias partes (criar círculo, aceitar convite, sair) são batches; as regras
+// conferem os documentos entre si com getAfter/existsAfter.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ────────────────────────────────────────────────────────────────
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function circlePath(circleId) {
+      return /databases/$(database)/documents/circles/$(circleId);
+    }
+
+    function memberPath(circleId, uid) {
+      return /databases/$(database)/documents/circles/$(circleId)/members/$(uid);
+    }
+
+    function invitePath(code) {
+      return /databases/$(database)/documents/invites/$(code);
+    }
+
+    function myAccountRole() {
+      return get(userPath(request.auth.uid)).data.role;
+    }
+
+    function myCircleIdBefore() {
+      return get(userPath(request.auth.uid)).data.get('circleId', null);
+    }
+
+    function myMember(circleId) {
+      return get(memberPath(circleId, request.auth.uid)).data;
+    }
+
+    function isActiveMember(circleId) {
+      return signedIn()
+        && exists(memberPath(circleId, request.auth.uid))
+        && myMember(circleId).status == 'ativo';
+    }
+
+    function can(circleId, permission) {
+      return isActiveMember(circleId) && permission in myMember(circleId).permissions;
+    }
+
+    // Ninguém concede permissão que não tem.
+    function withinMyPermissions(circleId, permissions) {
+      return permissions.toSet().difference(myMember(circleId).permissions.toSet()).size() == 0;
+    }
+
+    function allPermissions() {
+      return ['ver-rotina', 'editar-rotina', 'ver-saude', 'editar-saude', 'emergencia', 'gerenciar-membros'];
+    }
+
+    function hasAllPermissions(permissions) {
+      return permissions.toSet().hasAll(allPermissions()) && permissions.size() == allPermissions().size();
+    }
+
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ─── Perfil ─────────────────────────────────────────────────────────────────
+
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+
+      // Cadastro exige aceite dos termos carimbado pelo servidor (LGPD).
+      allow create: if isSelf(uid)
+        && request.resource.data.termsVersion is string
+        && request.resource.data.termsAcceptedAt == request.time
+        && request.resource.data.get('circleId', null) == null;
+
+      // circleId: pode voltar a null a qualquer momento (sair / ponteiro órfão); só aponta para um
+      // círculo novo se estava vazio e o próprio membro existe lá ao fim do batch.
+      allow update: if isSelf(uid)
+        && changed().hasOnly(['circleId', 'name'])
+        && (
+          request.resource.data.get('circleId', null) == null
+          || request.resource.data.circleId == resource.data.get('circleId', null)
+          || (
+            resource.data.get('circleId', null) == null
+            && existsAfter(memberPath(request.resource.data.circleId, uid))
+          )
+        );
+
+      // Dados legados por usuário (favoritos, tarefas e medicamentos antes da migração).
+      match /{document=**} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    // ─── Avaliações ─────────────────────────────────────────────────────────────
+
+    match /businesses/{businessId}/reviews/{reviewId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // ─── Círculo ────────────────────────────────────────────────────────────────
+
+    match /circles/{circleId} {
+      // Pendente também lê o círculo (tela "aguardando aprovação").
+      allow read: if signedIn() && exists(memberPath(circleId, request.auth.uid));
+
+      allow create: if signedIn()
+        && myAccountRole() != 'partner'
+        && myCircleIdBefore() == null
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.memberCount == 1
+        && request.resource.data.emergencyCount == 0
+        && request.resource.data.consent.by == request.auth.uid
+        && request.resource.data.consent.at == request.time
+        && request.resource.data.consent.version is string
+        && request.resource.data.subject.name is string
+        && request.resource.data.subject.name.size() > 0
+        // Conta elder é o próprio titular; as demais criam com titular nominal.
+        && (
+          request.resource.data.subject.uid == null
+          || (request.resource.data.subject.uid == request.auth.uid && myAccountRole() == 'elder')
+        )
+        && existsAfter(memberPath(circleId, request.auth.uid));
+
+      allow update: if signedIn() && (
+        // Quem gerencia: nome do titular, contadores e vínculo do titular com conta.
+        (
+          can(circleId, 'gerenciar-membros')
+          && changed().hasOnly(['subject', 'memberCount', 'emergencyCount'])
+          && request.resource.data.memberCount >= 0
+          && request.resource.data.memberCount <= 10
+          && request.resource.data.emergencyCount >= 0
+          && request.resource.data.emergencyCount <= 3
+          && (
+            request.resource.data.subject.uid == resource.data.subject.uid
+            || (
+              resource.data.subject.uid == null
+              && getAfter(memberPath(circleId, request.resource.data.subject.uid)).data.role == 'titular'
+              && getAfter(memberPath(circleId, request.resource.data.subject.uid)).data.status == 'ativo'
+            )
+          )
+        )
+        // Quem aceita convite: +1 membro, respeitando o limite.
+        || (
+          changed().hasOnly(['memberCount'])
+          && request.resource.data.memberCount == resource.data.memberCount + 1
+          && request.resource.data.memberCount <= 10
+          && !exists(memberPath(circleId, request.auth.uid))
+          && existsAfter(memberPath(circleId, request.auth.uid))
+        )
+        // Quem sai: -1 membro (e -1 emergência, se era contato).
+        || (
+          changed().hasOnly(['memberCount', 'emergencyCount'])
+          && request.resource.data.memberCount == resource.data.memberCount - 1
+          && request.resource.data.emergencyCount >= resource.data.emergencyCount - 1
+          && request.resource.data.emergencyCount <= resource.data.emergencyCount
+          && exists(memberPath(circleId, request.auth.uid))
+          && !existsAfter(memberPath(circleId, request.auth.uid))
+        )
+      );
+
+      // Titular com conta; com titular nominal, quem gerencia.
+      allow delete: if signedIn() && (
+        resource.data.subject.uid == request.auth.uid
+        || (resource.data.subject.uid == null && can(circleId, 'gerenciar-membros'))
+      );
+
+      match /members/{memberUid} {
+        allow read: if isActiveMember(circleId) || isSelf(memberUid);
+
+        allow create: if isSelf(memberUid) && (
+          // Criador, no mesmo batch do círculo: titular (conta elder) ou admin, com tudo.
+          (
+            !exists(circlePath(circleId))
+            && getAfter(circlePath(circleId)).data.createdBy == memberUid
+            && request.resource.data.status == 'ativo'
+            && hasAllPermissions(request.resource.data.permissions)
+            && (
+              (request.resource.data.role == 'titular'
+                && getAfter(circlePath(circleId)).data.subject.uid == memberUid)
+              || (request.resource.data.role == 'admin'
+                && getAfter(circlePath(circleId)).data.subject.uid == null)
+            )
+          )
+          // Convidado: entra pendente, com exatamente o que o convite concede.
+          || (
+            exists(circlePath(circleId))
+            && myAccountRole() != 'partner'
+            && myCircleIdBefore() == null
+            && request.resource.data.status == 'pendente'
+            && get(invitePath(request.resource.data.inviteCode)).data.circleId == circleId
+            && get(invitePath(request.resource.data.inviteCode)).data.usedBy == null
+            && get(invitePath(request.resource.data.inviteCode)).data.revoked == false
+            && get(invitePath(request.resource.data.inviteCode)).data.expiresAt > request.time
+            && getAfter(invitePath(request.resource.data.inviteCode)).data.usedBy == memberUid
+            && request.resource.data.role == get(invitePath(request.resource.data.inviteCode)).data.role
+            && request.resource.data.permissions == get(invitePath(request.resource.data.inviteCode)).data.permissions
+            && request.resource.data.label == get(invitePath(request.resource.data.inviteCode)).data.label
+            && request.resource.data.invitedBy == get(invitePath(request.resource.data.inviteCode)).data.createdBy
+          )
+        );
+
+        allow update: if signedIn() && (
+          // Quem gerencia, nunca no próprio doc.
+          (
+            can(circleId, 'gerenciar-membros')
+            && memberUid != request.auth.uid
+            && (
+              // Titular: só pode ser aprovado (pendente → ativo); depois é intocável.
+              (
+                resource.data.role == 'titular'
+                && resource.data.status == 'pendente'
+                && changed().hasOnly(['status'])
+                && request.resource.data.status == 'ativo'
+              )
+              || (
+                resource.data.role != 'titular'
+                && request.resource.data.role != 'titular'
+                && changed().hasOnly(['role', 'label', 'permissions', 'status'])
+                && withinMyPermissions(circleId, request.resource.data.permissions)
+                && (
+                  request.resource.data.status == resource.data.status
+                  || (resource.data.status == 'pendente' && request.resource.data.status == 'ativo')
+                )
+              )
+            )
+          )
+          // O próprio membro: último acesso e telefone.
+          || (isSelf(memberUid) && changed().hasOnly(['lastAccess', 'phone']))
+        );
+
+        allow delete: if signedIn() && (
+          // Remover/recusar: quem gerencia, nunca a si mesmo nem o titular ativo.
+          (
+            can(circleId, 'gerenciar-membros')
+            && memberUid != request.auth.uid
+            && !(resource.data.role == 'titular' && resource.data.status == 'ativo')
+          )
+          // Sair: qualquer membro, exceto o titular.
+          || (isSelf(memberUid) && resource.data.role != 'titular')
+        );
+      }
+
+      // ─── Dados do círculo (migração na etapa 3) ──────────────────────────────
+
+      match /tasks/{taskId} {
+        allow read: if can(circleId, 'ver-rotina');
+        allow write: if can(circleId, 'editar-rotina');
+      }
+
+      match /medications/{medicationId} {
+        allow read: if can(circleId, 'ver-saude');
+        allow write: if can(circleId, 'editar-saude');
+      }
+
+      match /medicationDoses/{doseId} {
+        allow read: if can(circleId, 'ver-saude');
+        allow write: if can(circleId, 'editar-saude');
+      }
+
+      // Registro de atividade: só acrescenta.
+      match /activity/{entryId} {
+        allow read: if can(circleId, 'gerenciar-membros');
+        allow create: if isActiveMember(circleId)
+          && request.resource.data.by == request.auth.uid
+          && request.resource.data.at == request.time;
+      }
+    }
+
+    // ─── Convites ───────────────────────────────────────────────────────────────
+
+    match /invites/{code} {
+      // Leitura só pelo código exato (get); listar só quem gerencia o círculo do convite.
+      allow get: if signedIn();
+      allow list: if signedIn() && can(resource.data.circleId, 'gerenciar-membros');
+
+      allow create: if signedIn()
+        && code.matches('^ELDER-[A-Z0-9]{4}-[A-Z0-9]{4}$')
+        && can(request.resource.data.circleId, 'gerenciar-membros')
+        && withinMyPermissions(request.resource.data.circleId, request.resource.data.permissions)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(8, 'd')
+        && request.resource.data.usedBy == null
+        && request.resource.data.usedAt == null
+        && request.resource.data.revoked == false
+        && request.resource.data.role in ['titular', 'admin', 'familiar', 'profissional', 'observador']
+        && get(circlePath(request.resource.data.circleId)).data.memberCount < 10
+        && (
+          request.resource.data.role != 'titular'
+          || get(circlePath(request.resource.data.circleId)).data.subject.uid == null
+        );
+
+      allow update: if signedIn() && (
+        // Aceite: consome o convite no mesmo batch que cria o membro pendente.
+        (
+          changed().hasOnly(['usedBy', 'usedAt'])
+          && resource.data.usedBy == null
+          && resource.data.revoked == false
+          && resource.data.expiresAt > request.time
+          && request.resource.data.usedBy == request.auth.uid
+          && request.resource.data.usedAt == request.time
+          && existsAfter(memberPath(resource.data.circleId, request.auth.uid))
+        )
+        // Revogação: quem gerencia, enquanto não usado.
+        || (
+          can(resource.data.circleId, 'gerenciar-membros')
+          && changed().hasOnly(['revoked'])
+          && request.resource.data.revoked == true
+          && resource.data.usedBy == null
+        )
+      );
+
+      allow delete: if false;
+    }
+  }
+}

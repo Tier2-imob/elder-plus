@@ -52,5 +52,6 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
     createdAt: data.createdAt ?? null,
     termsAcceptedAt: data.termsAcceptedAt ?? null,
     termsVersion: data.termsVersion ?? '',
+    circleId: typeof data.circleId === 'string' ? data.circleId : null,
   }
 }

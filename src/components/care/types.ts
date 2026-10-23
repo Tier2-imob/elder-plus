@@ -144,6 +144,7 @@ export type PermissionKey =
   | 'ver-saude'
   | 'editar-saude'
   | 'emergencia'
+  | 'gerenciar-membros'
 
 export type FamilyMember = {
   id: string
@@ -160,4 +161,49 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'ver-saude': 'Ver saúde',
   'editar-saude': 'Editar saúde',
   emergencia: 'Contato de emergência',
+  'gerenciar-membros': 'Gerenciar membros',
+}
+
+// ─── Círculo de cuidado ──────────────────────────────────────────────────────
+
+/**
+ * Role inside a care circle. `titular` is the assisted person WITH an account (a nominal titular
+ * has no member doc — it lives only in the circle's `subject`). Partners never join a circle.
+ */
+export type CircleRole = 'titular' | 'admin' | 'familiar' | 'profissional' | 'observador'
+
+export type MemberStatus = 'pendente' | 'ativo'
+
+export const ALL_PERMISSIONS: PermissionKey[] = [
+  'ver-rotina',
+  'editar-rotina',
+  'ver-saude',
+  'editar-saude',
+  'emergencia',
+  'gerenciar-membros',
+]
+
+export const CIRCLE_ROLE_LABELS: Record<CircleRole, string> = {
+  titular: 'Pessoa assistida',
+  admin: 'Administrador',
+  familiar: 'Familiar',
+  profissional: 'Profissional',
+  observador: 'Observador',
+}
+
+/** Starting permission set per role; a manager can then adjust each member individually. */
+export const ROLE_DEFAULT_PERMISSIONS: Record<CircleRole, PermissionKey[]> = {
+  titular: ALL_PERMISSIONS,
+  admin: ALL_PERMISSIONS,
+  familiar: ['ver-rotina', 'editar-rotina', 'ver-saude'],
+  profissional: ['ver-saude', 'editar-saude'],
+  observador: ['ver-rotina'],
+}
+
+/** Limits agreed for the MVP (also enforced by the Firestore rules where possible). */
+export const CIRCLE_LIMITS = {
+  /** Active + pending members. */
+  maxMembers: 10,
+  maxEmergencyContacts: 3,
+  inviteValidityDays: 7,
 }

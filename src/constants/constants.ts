@@ -8,6 +8,13 @@ import { AccountRole } from "@/components/types";
  */
 export const TERMS_VERSION = '1.0'
 
+/**
+ * Versão do texto de consentimento do círculo de cuidado: a declaração de quem cria o círculo
+ * ("sou responsável / tenho autorização da pessoa assistida") e o aceite de quem entra por convite.
+ * Registrada junto do carimbo do servidor (LGPD art. 11 — dados de saúde).
+ */
+export const CIRCLE_CONSENT_VERSION = '1.0'
+
 export const ROLE_CONTEXT: Record<AccountRole, { label: string; nameHint: string; tone: 'navy' | 'terracota' }> = {
     elder: {
         label: 'Idoso',
