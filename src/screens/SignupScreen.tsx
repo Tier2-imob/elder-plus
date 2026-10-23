@@ -1,6 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import type { AccountRole } from "@/components/types";
 import { ROLE_CONTEXT } from "@/constants/constants";
@@ -10,7 +10,6 @@ export function SignupScreen({
   onBack,
   onContinue,
   onGoogle,
-  asset,
   topInset = 0,
   submitting = false,
   errorMessage,
@@ -19,7 +18,6 @@ export function SignupScreen({
   onBack: () => void;
   onContinue: (input: { name: string; email: string; password: string; acceptedTerms: boolean }) => void;
   onGoogle: () => void | Promise<void>;
-  asset?: number;
   topInset?: number;
   submitting?: boolean;
   errorMessage?: string;
@@ -70,9 +68,6 @@ export function SignupScreen({
 
   return (
     <View className="flex-1 bg-offwhite w-full h-full">
-      {asset ? (
-        <Image source={asset} className="absolute inset-0 w-full h-full" resizeMode="cover"/>
-      ) : null}
       <View className="px-6" style={{ paddingTop: topInset + 16 }}>
         <View className="flex-row items-center justify-between mb-7">
           <Pressable
@@ -219,8 +214,8 @@ export function SignupScreen({
             {accepted ? <MaterialIcons name="check" size={15} color="#FFFFFF" /> : null}
           </View>
           <Text className="flex-1 font-hanken text-muted text-[12px] leading-[17px]">
-            Li e aceito os <Text className="font-hanken-bold text-navy">Termos de Uso</Text> e a{" "}
-            <Text className="font-hanken-bold text-navy">Política de Privacidade</Text> do Elder+.
+            Li e aceito os <Text className="font-hanken-bold text-terracotta">Termos de Uso</Text> e a{" "}
+            <Text className="font-hanken-bold text-terracotta">Política de Privacidade</Text> do Elder+.
           </Text>
         </Pressable>
         {termsError ? (

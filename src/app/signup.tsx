@@ -71,7 +71,6 @@ export default function Signup() {
       onGoogle={handleGoogle}
       submitting={submitting}
       errorMessage={errorMessage}
-      asset={require('@/assets/images/ilustrations/a-man-seen-from-behind-standing-on-a-path--looking.jpg')}
     />
   );
 }
