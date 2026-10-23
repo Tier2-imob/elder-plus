@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { WebView } from 'react-native-webview'
 import { Logo } from '@/components/Logo'
+import { MapEmbed } from '@/components/MapEmbed'
 import { useAccount } from '@/state/account-context'
 
 const CHIP_INACTIVE = '#70879d'
@@ -180,32 +180,7 @@ export function DiscoverScreen({
             className="overflow-hidden border border-hairline"
             style={{ height: 220, borderRadius: 20 }}
           >
-            <WebView
-              originWhitelist={['*']}
-              source={{
-                html: `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; }
-    iframe { width: 100%; height: 100%; border: 0; display: block; }
-  </style>
-</head>
-<body>
-  <iframe
-    src="https://www.google.com/maps/embed/v1/search?key=AIzaSyDDgn0WgT-I7R7cvinDPCulsNCbGfOhcNI&q=${encodeURIComponent(categoryLabel)}&zoom=14"
-    allowfullscreen
-    loading="lazy"
-    referrerpolicy="no-referrer-when-downgrade">
-  </iframe>
-</body>
-</html>`,
-              }}
-              style={{ flex: 1 }}
-              javaScriptEnabled
-            />
+            <MapEmbed query={categoryLabel} />
           </View>
         </View>
       </ScrollView>

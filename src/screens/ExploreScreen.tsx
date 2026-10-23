@@ -1,5 +1,6 @@
 import { FloatingNav } from '@/components/FloatingNav'
 import { Logo } from '@/components/Logo'
+import { MapEmbed } from '@/components/MapEmbed'
 import { TaskCard } from '@/components/care/TaskCard'
 import type { FamilyMember, Task } from '@/components/care/types'
 import { CATEGORY_DATA } from '@/data/discover-data'
@@ -7,7 +8,6 @@ import type { ServiceItem } from '@/screens/DiscoverScreen'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import { WebView } from 'react-native-webview'
 
 type Category = {
   id: string
@@ -284,40 +284,14 @@ export function ExploreScreen({
           ))}
         </View>
 
-        {/* Mapa — iframe do Google Maps Embed dentro de um HTML local,
-            contornando a restrição "must be used in an iframe" do Maps Embed API. */}
+        {/* Mapa (Google Maps Embed) */}
         <View className="mb-7">
           <Text className="font-hanken-bold text-navy text-[15px] mb-3">Serviços perto de você</Text>
           <View
             className="overflow-hidden border border-hairline"
             style={{ height: 200, borderRadius: 20 }}
           >
-            <WebView
-              originWhitelist={['*']}
-              source={{
-                html: `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; }
-    iframe { width: 100%; height: 100%; border: 0; display: block; }
-  </style>
-</head>
-<body>
-  <iframe
-    src="https://www.google.com/maps/embed/v1/search?key=AIzaSyDDgn0WgT-I7R7cvinDPCulsNCbGfOhcNI&q=${encodeURIComponent('servicos de saude para idosos')}&zoom=14"
-    allowfullscreen
-    loading="lazy"
-    referrerpolicy="no-referrer-when-downgrade">
-  </iframe>
-</body>
-</html>`,
-              }}
-              style={{ flex: 1 }}
-              javaScriptEnabled
-            />
+            <MapEmbed query="servicos de saude para idosos" />
           </View>
         </View>
 
