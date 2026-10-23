@@ -46,6 +46,8 @@ export function CareScreen({
   healthReminders,
   healthStats,
   familyMembers,
+  circleName,
+  circleMembers,
   onToggleDone,
   onReschedule,
   onAssign,
@@ -69,6 +71,10 @@ export function CareScreen({
   healthReminders: HealthReminder[]
   healthStats: HealthStats
   familyMembers: FamilyMember[]
+  /** Assisted person's name (the circle's titular). */
+  circleName: string
+  /** Real circle members for the Família tab. */
+  circleMembers: FamilyMember[]
   onToggleDone: (taskId: string, isDone: boolean) => void
   onReschedule: (taskId: string, time: string) => void
   onAssign: (taskId: string, assignee: string) => void
@@ -211,7 +217,7 @@ export function CareScreen({
             onEditMedication={setMedicationForm}
           />
         ) : (
-          <FamilyView members={familyMembers} />
+          <FamilyView circleName={circleName} members={circleMembers} />
         )}
       </ScrollView>
 

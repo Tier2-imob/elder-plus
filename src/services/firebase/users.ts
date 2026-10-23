@@ -1,4 +1,12 @@
-import { doc, getDoc, serverTimestamp, setDoc, type FieldValue } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  type FieldValue,
+  type Unsubscribe,
+} from 'firebase/firestore'
 
 import type { AccountRole } from '@/components/types'
 
@@ -54,4 +62,23 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
     termsVersion: data.termsVersion ?? '',
     circleId: typeof data.circleId === 'string' ? data.circleId : null,
   }
+}
+
+/**
+ * Subscribe to users/{uid}.circleId, so creating, joining or leaving a circle (batched writes that
+ * set it) reaches every screen at once. Emits null while the profile has no circle.
+ */
+export function observeCircleId(
+  uid: string,
+  onNext: (circleId: string | null) => void,
+  onError: (error: Error) => void
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'users', uid),
+    (snap) => {
+      const value = snap.data()?.circleId
+      onNext(typeof value === 'string' ? value : null)
+    },
+    onError
+  )
 }

@@ -137,18 +137,28 @@ export function observeMembers(
 }
 
 /**
- * The signed-in user's own membership for `circleId` (from users/{uid}.circleId). A pointer left
- * behind after a manager removed or rejected the user (the manager cannot write the user's profile)
- * is cleared here, and null is returned — the user simply has no circle again.
+ * Subscribe to the signed-in user's own member doc (readable even while pending). `exists` is false
+ * when the doc is gone; `fromCache` tells whether the server confirmed that.
  */
-export async function resolveMembership(uid: string, circleId: string | null): Promise<CircleMemberDoc | null> {
-  if (!circleId) return null
-  const member = toMember(await getDoc(memberRef(circleId, uid)))
-  if (!member) {
-    await updateDoc(userRef(uid), { circleId: null })
-    return null
-  }
-  return member
+export function observeOwnMember(
+  circleId: string,
+  uid: string,
+  onNext: (member: CircleMemberDoc | null, fromCache: boolean) => void,
+  onError: (error: Error) => void
+): Unsubscribe {
+  return onSnapshot(
+    memberRef(circleId, uid),
+    (snap) => onNext(toMember(snap), snap.metadata.fromCache),
+    onError
+  )
+}
+
+/**
+ * Clear a users/{uid}.circleId left behind after a manager removed or rejected the user (the
+ * manager cannot write another user's profile): the user simply has no circle again.
+ */
+export async function clearStaleCircle(uid: string): Promise<void> {
+  await updateDoc(userRef(uid), { circleId: null })
 }
 
 // ─── Criação ───────────────────────────────────────────────────────────────────
@@ -310,7 +320,7 @@ export async function approveMember(circleId: string, member: CircleMemberDoc): 
 
 /**
  * Reject a pending member or remove an active one. Their users/{uid}.circleId cannot be written
- * by the manager; `resolveMembership` clears it on the removed user's next access.
+ * by the manager; `clearStaleCircle` clears it on the removed user's next access.
  */
 export async function removeMember(circleId: string, member: CircleMemberDoc): Promise<void> {
   const batch = writeBatch(db)

@@ -14,7 +14,7 @@ export type UserProfile = {
   termsVersion: string
   /**
    * The one care circle this user belongs to (active or pending), or null. May be stale after a
-   * manager removes the user — `resolveMembership` detects and clears that.
+   * manager removes the user — `clearStaleCircle` clears that.
    */
   circleId: string | null
 }
