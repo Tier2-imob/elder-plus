@@ -49,9 +49,10 @@ const MESSAGES: Record<CircleErrorCode, string> = {
 
 export function circleErrorMessage(error: unknown): string {
   const code = (error as { code?: string } | null)?.code
-  return code && code in MESSAGES
-    ? MESSAGES[code as CircleErrorCode]
-    : 'Não foi possível concluir. Verifique sua conexão e tente novamente.'
+  if (code && code in MESSAGES) return MESSAGES[code as CircleErrorCode]
+  // Firestore rules rejected the write (e.g. rules not published yet, or a stale state).
+  if (code === 'permission-denied') return 'O servidor recusou esta ação. Tente novamente em instantes.'
+  return 'Não foi possível concluir. Verifique sua conexão e tente novamente.'
 }
 
 // ─── Permissões ────────────────────────────────────────────────────────────────

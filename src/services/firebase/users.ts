@@ -67,6 +67,10 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
 /**
  * Subscribe to users/{uid}.circleId, so creating, joining or leaving a circle (batched writes that
  * set it) reaches every screen at once. Emits null while the profile has no circle.
+ *
+ * Only server-confirmed values are emitted: Firestore shows a local write at once and reverts it
+ * if the server rejects the batch, which made the UI jump into the circle and back. Skipping
+ * snapshots with pending writes keeps the screen put until the server answers.
  */
 export function observeCircleId(
   uid: string,
@@ -76,6 +80,7 @@ export function observeCircleId(
   return onSnapshot(
     doc(db, 'users', uid),
     (snap) => {
+      if (snap.metadata.hasPendingWrites) return
       const value = snap.data()?.circleId
       onNext(typeof value === 'string' ? value : null)
     },
