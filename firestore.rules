@@ -105,7 +105,9 @@ service cloud.firestore {
         );
 
       // Dados legados por usuário (favoritos, tarefas e medicamentos antes da migração).
-      match /{document=**} {
+      // `{collection}/` antes do curinga: `{document=**}` sozinho casa zero segmentos e valeria
+      // também para o próprio users/{uid}, anulando as restrições do perfil acima.
+      match /{collection}/{document=**} {
         allow read, write: if isSelf(uid);
       }
     }
