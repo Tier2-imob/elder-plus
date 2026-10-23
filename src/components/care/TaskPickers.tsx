@@ -161,8 +161,16 @@ export function MemberOptions({
   onPick,
 }: {
   members: FamilyMember[]
-  onPick: (name: string) => void
+  /** Receives the member's id. */
+  onPick: (memberId: string) => void
 }) {
+  if (members.length === 0) {
+    return (
+      <Text className="font-hanken text-muted text-[15px] leading-[22px]">
+        Ninguém do círculo pode ser responsável ainda. Convide pessoas na aba Família.
+      </Text>
+    )
+  }
   return (
     <View className="gap-2">
       {members.map((member) => (
@@ -170,7 +178,7 @@ export function MemberOptions({
           key={member.id}
           accessibilityRole="button"
           accessibilityLabel={`Atribuir para ${member.name}`}
-          onPress={() => onPick(member.name)}
+          onPress={() => onPick(member.id)}
           className="flex-row items-center gap-3 px-4 py-3 rounded-2xl active:opacity-70"
           style={{ backgroundColor: 'rgba(17,55,92,0.05)' }}
         >

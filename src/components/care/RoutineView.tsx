@@ -18,6 +18,8 @@ type ToggleProps = {
   onAssign: (id: string, assignee: string) => void
   onChangeCategory: (id: string, category: TaskCategory) => void
   onDelete: (id: string) => void
+  /** Viewer without `editar-rotina`. */
+  readOnly?: boolean
 }
 
 function EmptyDay({ label }: { label: string }) {
@@ -41,6 +43,7 @@ export function RoutineView({
   onAssign,
   onChangeCategory,
   onDelete,
+  readOnly = false,
 }: ToggleProps & { mode: 'today' | 'week' }) {
   const cardProps = (task: Task) => ({
     task,
@@ -51,6 +54,7 @@ export function RoutineView({
     onAssign: (assignee: string) => onAssign(task.id, assignee),
     onChangeCategory: (category: TaskCategory) => onChangeCategory(task.id, category),
     onDelete: () => onDelete(task.id),
+    readOnly,
   })
 
   if (mode === 'today') {

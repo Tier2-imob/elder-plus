@@ -51,6 +51,7 @@ export function CareScreen({
   circleMembers,
   familyManagement,
   familySelf,
+  access,
   onToggleDone,
   onReschedule,
   onAssign,
@@ -84,6 +85,8 @@ export function CareScreen({
   familyManagement?: FamilyManagement
   /** The viewer's own phone and leaving. */
   familySelf: FamilySelf
+  /** What the viewer may see/edit (from their circle permissions). */
+  access: { canSeeRoutine: boolean; canEditRoutine: boolean; canSeeHealth: boolean; canEditHealth: boolean }
   onToggleDone: (taskId: string, isDone: boolean) => void
   onReschedule: (taskId: string, time: string) => void
   onAssign: (taskId: string, assignee: string) => void
@@ -100,7 +103,12 @@ export function CareScreen({
   topInset?: number
   bottomInset?: number
 }) {
-  const [tab, setTab] = useState<CareTab>('rotina')
+  const visibleTabs = TABS.filter(
+    (t) => (t.key !== 'rotina' || access.canSeeRoutine) && (t.key !== 'saude' || access.canSeeHealth)
+  )
+  const [selectedTab, setTab] = useState<CareTab>('rotina')
+  // Família is always visible, so this never comes out empty.
+  const tab = visibleTabs.some((t) => t.key === selectedTab) ? selectedTab : visibleTabs[0].key
   const [routineMode, setRoutineMode] = useState<RoutineMode>('today')
   const [newTaskOpen, setNewTaskOpen] = useState(false)
   // 'new' = create form; a Medication = edit form for it; null = closed.
@@ -120,7 +128,7 @@ export function CareScreen({
           className="flex-row rounded-2xl p-1.5"
           style={{ backgroundColor: 'rgba(17,55,92,0.07)' }}
         >
-          {TABS.map(({ key, label, icon }) => {
+          {visibleTabs.map(({ key, label, icon }) => {
             const isActive = tab === key
             return (
               <Pressable
@@ -192,15 +200,17 @@ export function CareScreen({
             </Text>
           ) : (
             <>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Nova tarefa"
-                onPress={() => setNewTaskOpen(true)}
-                className="min-h-[52px] rounded-2xl flex-row items-center justify-center gap-2 bg-navy mb-4 active:opacity-90"
-              >
-                <MaterialIcons name="add" size={20} color="#FFFFFF" />
-                <Text className="font-hanken-bold text-base text-white">Nova tarefa</Text>
-              </Pressable>
+              {access.canEditRoutine ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Nova tarefa"
+                  onPress={() => setNewTaskOpen(true)}
+                  className="min-h-[56px] rounded-2xl flex-row items-center justify-center gap-2 bg-navy mb-4 active:opacity-90"
+                >
+                  <MaterialIcons name="add" size={20} color="#FFFFFF" />
+                  <Text className="font-hanken-bold text-base text-white">Nova tarefa</Text>
+                </Pressable>
+              ) : null}
               <RoutineView
                 mode={routineMode}
                 tasks={tasks}
@@ -211,6 +221,7 @@ export function CareScreen({
                 onAssign={onAssign}
                 onChangeCategory={onChangeTaskCategory}
                 onDelete={onDeleteTask}
+                readOnly={!access.canEditRoutine}
               />
             </>
           )
@@ -228,6 +239,7 @@ export function CareScreen({
             onUndoDose={onUndoDose}
             onAddMedication={() => setMedicationForm('new')}
             onEditMedication={setMedicationForm}
+            readOnly={!access.canEditHealth}
           />
         ) : (
           <FamilyView circleName={circleName} members={circleMembers} management={familyManagement} self={familySelf} />

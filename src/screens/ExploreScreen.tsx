@@ -54,6 +54,7 @@ export function ExploreScreen({
   onAssignTask,
   onChangeTaskCategory,
   onDeleteTask,
+  taskReadOnly = false,
   topInset = 0,
   bottomInset = 0,
   onSelectCategory,
@@ -73,6 +74,8 @@ export function ExploreScreen({
   onAssignTask?: (taskId: string, assignee: string) => void
   onChangeTaskCategory?: (taskId: string, category: TaskCategory) => void
   onDeleteTask?: (taskId: string) => void
+  /** Viewer can see but not edit the routine. */
+  taskReadOnly?: boolean
   topInset?: number
   bottomInset?: number
   onSelectCategory: (category: Category) => void
@@ -255,6 +258,7 @@ export function ExploreScreen({
                   onChangeTaskCategory ? (category) => onChangeTaskCategory(nearestTask.id, category) : undefined
                 }
                 onDelete={onDeleteTask ? () => onDeleteTask(nearestTask.id) : undefined}
+                readOnly={taskReadOnly}
               />
             ) : (
               <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">

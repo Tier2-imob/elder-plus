@@ -57,6 +57,7 @@ function MedicationCard({
   onRecordDose,
   onUndoDose,
   onEdit,
+  readOnly,
 }: {
   medication: Medication
   /** Current local time, "HH:MM" — slots before it and still unregistered show as overdue. */
@@ -64,6 +65,8 @@ function MedicationCard({
   onRecordDose: (time: string, taken: boolean) => void
   onUndoDose: (time: string) => void
   onEdit: () => void
+  /** Viewer without `editar-saude`: see doses and stock, no actions. */
+  readOnly: boolean
 }) {
   const badge = stockBadge(medication.stock)
   const lowStock = medication.stock <= LOW_STOCK_THRESHOLD
@@ -79,15 +82,17 @@ function MedicationCard({
         <View className="px-2.5 py-1 rounded-full mr-2" style={{ backgroundColor: badge.bg }}>
           <Text className="font-hanken-bold text-[11px]" style={{ color: badge.color }}>{badge.label}</Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Editar ${medication.name}`}
-          onPress={onEdit}
-          hitSlop={8}
-          className="active:opacity-60"
-        >
-          <MaterialIcons name="edit" size={20} color="#11375C" />
-        </Pressable>
+        {readOnly ? null : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Editar ${medication.name}`}
+            onPress={onEdit}
+            hitSlop={8}
+            className="active:opacity-60"
+          >
+            <MaterialIcons name="edit" size={20} color="#11375C" />
+          </Pressable>
+        )}
       </View>
 
       {medication.principle ? (
@@ -139,7 +144,11 @@ function MedicationCard({
               >
                 {time}{overdue ? ' · pendente' : ''}
               </Text>
-              {logged ? (
+              {logged && readOnly ? (
+                <DoseChip state={logged.state} />
+              ) : readOnly ? (
+                <Text className="font-hanken text-muted text-xs">Sem registro</Text>
+              ) : logged ? (
                 <>
                   <DoseChip state={logged.state} />
                   <Pressable
@@ -208,6 +217,7 @@ export function HealthView({
   onUndoDose,
   onAddMedication,
   onEditMedication,
+  readOnly = false,
 }: {
   medications: Medication[]
   /** % of expected doses taken in the last 7 days; null when none was expected yet. */
@@ -222,6 +232,8 @@ export function HealthView({
   onUndoDose: (medicationId: string, time: string) => void
   onAddMedication: () => void
   onEditMedication: (medication: Medication) => void
+  /** Viewer without `editar-saude`. */
+  readOnly?: boolean
 }) {
   const now = new Date()
   const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
@@ -283,15 +295,17 @@ export function HealthView({
 
       {/* Medicamentos */}
       <SectionTitle>Medicamentos</SectionTitle>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Adicionar medicamento"
-        onPress={onAddMedication}
-        className="min-h-[52px] rounded-2xl flex-row items-center justify-center gap-2 bg-navy mb-4 active:opacity-90"
-      >
-        <MaterialIcons name="add" size={20} color="#FFFFFF" />
-        <Text className="font-hanken-bold text-base text-white">Adicionar medicamento</Text>
-      </Pressable>
+      {readOnly ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Adicionar medicamento"
+          onPress={onAddMedication}
+          className="min-h-[56px] rounded-2xl flex-row items-center justify-center gap-2 bg-navy mb-4 active:opacity-90"
+        >
+          <MaterialIcons name="add" size={20} color="#FFFFFF" />
+          <Text className="font-hanken-bold text-base text-white">Adicionar medicamento</Text>
+        </Pressable>
+      )}
 
       {medicationsError ? (
         <Text className="font-hanken-medium text-terracotta text-[13px] mb-3">{medicationsError}</Text>
@@ -305,7 +319,9 @@ export function HealthView({
             <MaterialIcons name="medication" size={22} color="#11375C" />
           </View>
           <Text className="font-hanken text-muted text-[13px] flex-1">
-            Nenhum medicamento cadastrado. Adicione para registrar as doses e acompanhar o estoque.
+            {readOnly
+              ? 'Nenhum medicamento cadastrado.'
+              : 'Nenhum medicamento cadastrado. Adicione para registrar as doses e acompanhar o estoque.'}
           </Text>
         </View>
       ) : (
@@ -317,6 +333,7 @@ export function HealthView({
             onRecordDose={(time, taken) => onRecordDose(medication.id, time, taken)}
             onUndoDose={(time) => onUndoDose(medication.id, time)}
             onEdit={() => onEditMedication(medication)}
+            readOnly={readOnly}
           />
         ))
       )}

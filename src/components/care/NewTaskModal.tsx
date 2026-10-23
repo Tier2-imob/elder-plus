@@ -66,7 +66,7 @@ export function NewTaskModal({
         dayKey: day.key,
         day: `${day.full}, ${day.date}`,
         time,
-        assignee,
+        assigneeId: assignee,
       })
       onClose()
     } catch (e) {
@@ -149,8 +149,8 @@ export function NewTaskModal({
                 <Chip
                   key={member.id}
                   label={member.name}
-                  active={assignee === member.name}
-                  onPress={() => setAssignee(member.name)}
+                  active={assignee === member.id}
+                  onPress={() => setAssignee(member.id)}
                 />
               ))}
             </View>

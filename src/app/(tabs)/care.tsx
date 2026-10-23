@@ -2,11 +2,18 @@ import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { CIRCLE_ROLE_LABELS, type PermissionKey } from '@/components/care/types'
-import { APPOINTMENT_STATS, FAMILY_MEMBERS, HEALTH_REMINDERS } from '@/data/care-private-data'
+import { APPOINTMENT_STATS, HEALTH_REMINDERS } from '@/data/care-private-data'
 import { useMedications } from '@/hooks/useMedications'
 import { CareScreen } from '@/screens/CareScreen'
 import { CircleSetupScreen, type CircleSetupMode, type InvitePreview } from '@/screens/CircleSetupScreen'
-import { canLeave, canManage, circleErrorMessage, formatPhone, hasPermission } from '@/services/circle-rules'
+import {
+  canLeave,
+  canManage,
+  circleErrorMessage,
+  formatPhone,
+  hasPermission,
+  isAssignable,
+} from '@/services/circle-rules'
 import type { InviteDoc } from '@/services/firebase/types'
 import { useAccount } from '@/state/account-context'
 import { useCareTasks } from '@/state/care-tasks-context'
@@ -136,7 +143,14 @@ export default function Care() {
       medicationsError={meds.medicationsError}
       healthReminders={HEALTH_REMINDERS}
       healthStats={APPOINTMENT_STATS}
-      familyMembers={FAMILY_MEMBERS}
+      // Responsible-person options: active members who can see the routine.
+      familyMembers={members.filter(isAssignable).map((m) => toFamilyMember(m, membership))}
+      access={{
+        canSeeRoutine: hasPermission(membership, 'ver-rotina'),
+        canEditRoutine: hasPermission(membership, 'editar-rotina'),
+        canSeeHealth: hasPermission(membership, 'ver-saude'),
+        canEditHealth: hasPermission(membership, 'editar-saude'),
+      }}
       circleName={circle.subject.name}
       circleMembers={members.filter((m) => m.status === 'ativo').map((m) => toFamilyMember(m, membership))}
       familySelf={{

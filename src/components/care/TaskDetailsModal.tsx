@@ -53,6 +53,7 @@ export function TaskDetailsModal({
   onReschedule,
   onAssign,
   onChangeCategory,
+  readOnly = false,
 }: {
   visible: boolean
   task: Task
@@ -64,6 +65,8 @@ export function TaskDetailsModal({
   onAssign: (assignee: string) => void
   /** Omitted: the category is shown but not editable. */
   onChangeCategory?: (category: TaskCategory) => void
+  /** Viewer without `editar-rotina`: details only, no actions. */
+  readOnly?: boolean
 }) {
   const [view, setView] = useState<'details' | 'reschedule' | 'assign' | 'category'>('details')
 
@@ -184,6 +187,7 @@ export function TaskDetailsModal({
               </ScrollView>
 
               {/* Ações (as mesmas do card) */}
+              {readOnly ? null : (
               <View className="flex-row flex-wrap items-center gap-2 mt-4">
                 <Pressable
                   accessibilityRole="button"
@@ -207,6 +211,7 @@ export function TaskDetailsModal({
                   <GhostButton label="Categoria" icon="label-outline" onPress={() => setView('category')} />
                 ) : null}
               </View>
+              )}
 
               <CancelButton label="Fechar" onPress={close} />
             </>

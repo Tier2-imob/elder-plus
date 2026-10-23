@@ -84,6 +84,7 @@ export function TaskCard({
   onAssign,
   onChangeCategory,
   onDelete,
+  readOnly = false,
 }: {
   task: Task
   done: boolean
@@ -94,6 +95,8 @@ export function TaskCard({
   onChangeCategory?: (category: TaskCategory) => void
   /** Enables delete mode (touch and hold the card). */
   onDelete?: () => void
+  /** Viewer without `editar-rotina`: no actions, no delete, details without edits. */
+  readOnly?: boolean
 }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -101,8 +104,10 @@ export function TaskCard({
   const [deleteRect, setDeleteRect] = useState<Rect | null>(null)
   const cardRef = useRef<View>(null)
 
+  const canDelete = !readOnly && !!onDelete
+
   function enterDeleteMode() {
-    if (!onDelete) return
+    if (!canDelete) return
     cardRef.current?.measureInWindow((x, y, width, height) => setDeleteRect({ x, y, width, height }))
   }
 
@@ -121,7 +126,7 @@ export function TaskCard({
       ref={cardRef}
       accessible={false}
       onPress={() => setDetailsOpen(true)}
-      onLongPress={onDelete ? enterDeleteMode : undefined}
+      onLongPress={canDelete ? enterDeleteMode : undefined}
       delayLongPress={450}
       className="rounded-3xl border mb-4 p-5 active:opacity-90"
       style={{
@@ -159,8 +164,8 @@ export function TaskCard({
           accessibilityRole="button"
           accessibilityLabel={`Ver detalhes de ${task.title}`}
           // Screen readers can't reliably "touch and hold": delete is offered as an action here.
-          accessibilityHint={onDelete ? 'Toque e segure o card para excluir a tarefa' : undefined}
-          accessibilityActions={onDelete ? [{ name: 'delete', label: 'Excluir tarefa' }] : undefined}
+          accessibilityHint={canDelete ? 'Toque e segure o card para excluir a tarefa' : undefined}
+          accessibilityActions={canDelete ? [{ name: 'delete', label: 'Excluir tarefa' }] : undefined}
           onAccessibilityAction={(e) => {
             if (e.nativeEvent.actionName === 'delete') enterDeleteMode()
           }}
@@ -213,7 +218,8 @@ export function TaskCard({
         </View>
       ) : null}
 
-      {/* Ações */}
+      {/* Ações (só para quem pode editar a rotina) */}
+      {readOnly ? null : (
       <View className="flex-row items-center gap-2">
         <Pressable
           accessibilityRole="button"
@@ -235,6 +241,7 @@ export function TaskCard({
         <GhostButton label="Adiar" icon="access-time" onPress={() => setRescheduleOpen(true)} />
         <GhostButton label="Atribuir" icon="person-add" onPress={() => setAssignOpen(true)} />
       </View>
+      )}
     </Pressable>
 
       {/* Modal: Adiar */}
@@ -270,9 +277,10 @@ export function TaskCard({
         onReschedule={onReschedule}
         onAssign={onAssign}
         onChangeCategory={onChangeCategory}
+        readOnly={readOnly}
       />
 
-      {deleteRect && onDelete ? (
+      {deleteRect && canDelete && onDelete ? (
         <DeleteOverlay
           rect={deleteRect}
           title={task.title}

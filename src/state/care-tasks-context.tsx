@@ -30,7 +30,11 @@ function isTaskCategory(value: string | undefined): value is TaskCategory {
  * Map a Firestore TaskDoc to the screen's Task. The icon cast is sound because tasks are created
  * with TASK_CATEGORIES icons, which are real MaterialIcons glyph keys.
  */
-function toTask(doc: TaskDoc): Task {
+/**
+ * `names` maps active circle members (uid → current name): an assignee who left the circle (or a
+ * pre-circle assignment by name only) shows as unassigned.
+ */
+function toTask(doc: TaskDoc, names: Map<string, string>): Task {
   return {
     id: doc.id,
     dayKey: doc.dayKey,
@@ -38,7 +42,8 @@ function toTask(doc: TaskDoc): Task {
     time: doc.time,
     day: doc.day,
     icon: doc.icon as keyof typeof MaterialIcons.glyphMap,
-    assignee: doc.assignee,
+    assigneeId: doc.assigneeId && names.has(doc.assigneeId) ? doc.assigneeId : undefined,
+    assignee: doc.assigneeId ? names.get(doc.assigneeId) : undefined,
     category: isTaskCategory(doc.category) ? doc.category : undefined,
     description: doc.description,
     createdAt: doc.createdAt ? doc.createdAt.toDate() : null,
@@ -70,7 +75,8 @@ type CareTasksValue = {
   complete: (taskId: string) => Promise<void>
   uncomplete: (taskId: string) => Promise<void>
   rescheduleTime: (taskId: string, time: string) => Promise<void>
-  assignTo: (taskId: string, assignee: string) => Promise<void>
+  /** Assign a circle member (by uid) as the responsible person. */
+  assignTo: (taskId: string, assigneeId: string) => Promise<void>
   changeCategory: (taskId: string, category: TaskCategory) => Promise<void>
   remove: (taskId: string) => Promise<void>
 }
@@ -89,7 +95,7 @@ const CareTasksContext = createContext<CareTasksValue | undefined>(undefined)
  * - Shows the last list saved in AsyncStorage while the first snapshot is on its way.
  */
 export function CareTasksProvider({ children }: { children: ReactNode }) {
-  const { circle, membership, circleLoading } = useCircle()
+  const { circle, membership, members, circleLoading } = useCircle()
   const circleId =
     !circleLoading && circle && hasPermission(membership, 'ver-rotina') ? circle.id : undefined
 
@@ -181,15 +187,16 @@ export function CareTasksProvider({ children }: { children: ReactNode }) {
   )
 
   const assignTo = useCallback(
-    async (taskId: string, assignee: string): Promise<void> => {
+    async (taskId: string, assigneeId: string): Promise<void> => {
       if (!circleId) return
       try {
-        await tasks.assignTask(circleId, taskId, assignee)
+        const name = members.find((m) => m.uid === assigneeId)?.name ?? ''
+        await tasks.assignTask(circleId, taskId, assigneeId, name)
       } catch (e) {
         console.warn('assignTask failed', e)
       }
     },
-    [circleId]
+    [circleId, members]
   )
 
   const changeCategory = useCallback(
@@ -222,16 +229,22 @@ export function CareTasksProvider({ children }: { children: ReactNode }) {
       if (!circleId || !membership) throw new Error('No circle to create the task in')
       await tasks.createTask(circleId, {
         ...input,
+        assignee: input.assigneeId ? members.find((m) => m.uid === input.assigneeId)?.name : undefined,
         icon: TASK_CATEGORIES[input.category].icon,
         createdBy: { uid: membership.uid, name: createdByName },
       })
     },
-    [circleId, membership]
+    [circleId, membership, members]
+  )
+
+  const names = useMemo(
+    () => new Map(members.filter((m) => m.status === 'ativo').map((m) => [m.uid, m.name])),
+    [members]
   )
 
   const value = useMemo<CareTasksValue>(
     () => ({
-      tasks: docs.map(toTask),
+      tasks: docs.map((d) => toTask(d, names)),
       doneIds: new Set(docs.filter((d) => d.done).map((d) => d.id)),
       tasksLoading,
       create,
@@ -242,7 +255,7 @@ export function CareTasksProvider({ children }: { children: ReactNode }) {
       changeCategory,
       remove,
     }),
-    [docs, tasksLoading, create, complete, uncomplete, rescheduleTime, assignTo, changeCategory, remove]
+    [docs, names, tasksLoading, create, complete, uncomplete, rescheduleTime, assignTo, changeCategory, remove]
   )
 
   return <CareTasksContext.Provider value={value}>{children}</CareTasksContext.Provider>

@@ -199,7 +199,8 @@ export async function createCircle(input: {
     name: input.name,
     role: (isTitular ? 'titular' : 'admin') satisfies CircleRole,
     label: null,
-    permissions: ALL_PERMISSIONS,
+    // Everything except `emergencia`: being an emergency contact needs a phone and is granted later.
+    permissions: ALL_PERMISSIONS.filter((p) => p !== 'emergencia'),
     status: 'ativo',
     phone: null,
     invitedBy: null,

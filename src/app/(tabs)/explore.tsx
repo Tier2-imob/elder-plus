@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { FAMILY_MEMBERS } from '@/data/care-private-data'
 import { useNearestTask } from '@/hooks/useNearestTask'
 import { ExploreScreen } from '@/screens/ExploreScreen'
+import { hasPermission, isAssignable } from '@/services/circle-rules'
 import { useAccount } from '@/state/account-context'
+import { toFamilyMember, useCircle } from '@/state/circle-context'
 
 export default function Explore() {
   const router = useRouter()
@@ -20,15 +21,18 @@ export default function Explore() {
     changeCategory,
     remove,
   } = useNearestTask(account?.uid)
+  const { membership, members } = useCircle()
 
   return (
     <ExploreScreen
       name={account?.name}
-      showNextTask={!!account}
+      // The card needs a circle the viewer can read the routine of.
+      showNextTask={hasPermission(membership, 'ver-rotina')}
+      taskReadOnly={!hasPermission(membership, 'editar-rotina')}
       nearestTask={nearestTask}
       nearestTaskDone={nearestTaskDone}
       taskLoading={taskLoading}
-      familyMembers={FAMILY_MEMBERS}
+      familyMembers={members.filter(isAssignable).map((m) => toFamilyMember(m, membership))}
       onToggleTaskDone={toggleDone}
       onRescheduleTask={reschedule}
       onAssignTask={assign}

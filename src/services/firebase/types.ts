@@ -39,7 +39,12 @@ export type TaskDoc = {
   icon: string
   done: boolean
   order: number
-  /** Family member responsible for executing the task (optional). */
+  /** uid of the circle member responsible for the task (optional). */
+  assigneeId?: string
+  /**
+   * That member's name when assigned (kept for reading the raw data). The app shows the *current*
+   * member's name from the circle instead, and nothing once they left.
+   */
   assignee?: string
   /** TaskCategory key (consulta, medicacao, ...). Absent on the initial seeded tasks. */
   category?: string

@@ -72,8 +72,11 @@ service cloud.firestore {
       return ['ver-rotina', 'editar-rotina', 'ver-saude', 'editar-saude', 'emergencia', 'gerenciar-membros'];
     }
 
-    function hasAllPermissions(permissions) {
-      return permissions.toSet().hasAll(allPermissions()) && permissions.size() == allPermissions().size();
+    // Circle creator: every permission, `emergencia` optional (granted later, once there is a phone;
+    // circles created by older app versions included it).
+    function hasCreatorPermissions(permissions) {
+      return permissions.toSet().hasAll(['ver-rotina', 'editar-rotina', 'ver-saude', 'editar-saude', 'gerenciar-membros'])
+        && permissions.toSet().difference(allPermissions().toSet()).size() == 0;
     }
 
     function changed() {
@@ -197,7 +200,7 @@ service cloud.firestore {
             !exists(circlePath(circleId))
             && getAfter(circlePath(circleId)).data.createdBy == memberUid
             && request.resource.data.status == 'ativo'
-            && hasAllPermissions(request.resource.data.permissions)
+            && hasCreatorPermissions(request.resource.data.permissions)
             && (
               (request.resource.data.role == 'titular'
                 && getAfter(circlePath(circleId)).data.subject.uid == memberUid)

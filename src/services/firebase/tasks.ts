@@ -26,6 +26,8 @@ export type NewTaskDoc = {
   icon: string
   category: string
   description?: string
+  /** Responsible member (uid + name at assignment time). */
+  assigneeId?: string
   assignee?: string
   createdBy: { uid: string; name: string }
 }
@@ -47,6 +49,7 @@ function toTaskDoc(d: QueryDocumentSnapshot<DocumentData>): TaskDoc {
     icon: data.icon,
     done: data.done,
     order: data.order,
+    assigneeId: data.assigneeId,
     assignee: data.assignee,
     category: data.category,
     description: data.description,
@@ -92,7 +95,7 @@ export async function createTask(circleId: string, input: NewTaskDoc): Promise<T
     done: false,
     createdBy: input.createdBy,
     ...(input.description ? { description: input.description } : {}),
-    ...(input.assignee ? { assignee: input.assignee } : {}),
+    ...(input.assigneeId ? { assigneeId: input.assigneeId, assignee: input.assignee ?? '' } : {}),
   }
   const ref = await addDoc(collection(db, 'circles', circleId, 'tasks'), {
     ...data,
@@ -121,8 +124,13 @@ export async function rescheduleTaskTime(
 }
 
 /** Assign a family member as the task's responsible person. */
-export async function assignTask(circleId: string, taskId: string, assignee: string): Promise<void> {
-  await updateDoc(doc(db, 'circles', circleId, 'tasks', taskId), { assignee })
+export async function assignTask(
+  circleId: string,
+  taskId: string,
+  assigneeId: string,
+  assigneeName: string
+): Promise<void> {
+  await updateDoc(doc(db, 'circles', circleId, 'tasks', taskId), { assigneeId, assignee: assigneeName })
 }
 
 /** Change a task's category; the icon follows it (TASK_CATEGORIES[category].icon). */

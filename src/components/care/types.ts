@@ -41,6 +41,9 @@ export type Task = {
   day: string
   icon: keyof typeof MaterialIcons.glyphMap
   category?: TaskCategory
+  /** uid of the responsible circle member (only while they are an active member). */
+  assigneeId?: string
+  /** That member's current name, for display. */
   assignee?: string
   status?: TaskStatus
   description?: string
@@ -58,7 +61,8 @@ export type NewTaskInput = {
   dayKey: string
   day: string
   time: string
-  assignee?: string
+  /** uid of the responsible circle member. */
+  assigneeId?: string
 }
 
 /** Time slots offered when creating or postponing a task. */
