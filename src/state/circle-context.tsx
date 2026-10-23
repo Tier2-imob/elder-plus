@@ -84,6 +84,9 @@ type CircleValue = {
 
 const CircleContext = createContext<CircleValue | undefined>(undefined)
 
+/** Longest the circle screen waits for the creator's legacy data migration before opening. */
+const MIGRATION_WAIT_MS = 8000
+
 /**
  * The signed-in user's care circle, live: users/{uid}.circleId → own member doc → circle doc and,
  * once active, the member list. A pointer left behind after a manager removed the user is cleared
@@ -177,14 +180,17 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   useEffect(() => {
     if (!uid || !circleId || !needsMigration || migratedFor === circleId) return
     let active = true
-    migrateLegacyCareData(uid, circleId)
+    const migration = migrateLegacyCareData(uid, circleId)
       .then((moved) => {
         if (moved) console.log(`migrated ${moved} legacy care docs into circle ${circleId}`)
       })
       .catch((e) => console.warn('migrateLegacyCareData failed', e))
-      .finally(() => {
-        if (active) setMigratedFor(circleId)
-      })
+    // Never hold the screen for long: after MIGRATION_WAIT_MS the circle opens anyway and the moved
+    // tasks appear live when the migration finishes (the task list is an onSnapshot).
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, MIGRATION_WAIT_MS))
+    void Promise.race([migration, timeout]).then(() => {
+      if (active) setMigratedFor(circleId)
+    })
     return () => {
       active = false
     }
@@ -194,7 +200,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const createCircle = useCallback(
     async (subjectName?: string): Promise<void> => {
       if (!account) throw new Error('No signed-in user')
-      await circles.createCircle({
+      const id = await circles.createCircle({
         uid: account.uid,
         name: account.name,
         accountRole: account.role,
@@ -202,6 +208,9 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
         subjectName,
         consentVersion: CIRCLE_CONSENT_VERSION,
       })
+      // The commit resolved, so the server has it: switch now rather than wait for the profile
+      // listener (its server-ack snapshot proved unreliable on some devices).
+      setCircleId(id)
     },
     [account, circleId]
   )
@@ -301,11 +310,13 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     const blocked = canLeave(membership, members)
     if (blocked) throw circleError(blocked)
     await circles.leaveCircle(circle, membership)
+    setCircleId(null)
   }, [circle, membership, members])
 
   const dissolve = useCallback(async (): Promise<void> => {
     if (!circle || !membership || !canDissolve(membership, members, circle)) throw circleError('circle/not-allowed')
     await circles.dissolveCircle(circle, membership, members)
+    setCircleId(null)
   }, [circle, membership, members])
 
   const updateMyPhone = useCallback(
@@ -339,7 +350,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const acceptInvite = useCallback(
     async (code: string): Promise<void> => {
       if (!account) throw circleError('circle/not-allowed')
-      await circles.acceptInvite({
+      const invite = await circles.acceptInvite({
         uid: account.uid,
         name: account.name,
         accountRole: account.role,
@@ -347,6 +358,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
         code,
         consentVersion: CIRCLE_CONSENT_VERSION,
       })
+      setCircleId(invite.circleId)
     },
     [account, circleId]
   )
@@ -354,6 +366,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const cancelPending = useCallback(async (): Promise<void> => {
     if (!circle || !membership || membership.status !== 'pendente') return
     await circles.leaveCircle(circle, membership)
+    setCircleId(null)
   }, [circle, membership])
 
   const circleLoading =
