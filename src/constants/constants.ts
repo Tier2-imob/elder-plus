@@ -8,6 +8,12 @@ import { AccountRole } from "@/components/types";
  */
 export const TERMS_VERSION = '1.0'
 
+/**
+ * Chave do Google Maps Embed API, lida do ambiente (.env local / variáveis do EAS) — nunca
+ * versionada. Vazia, o mapa mostra um placeholder. Restringir a chave à Maps Embed API no console.
+ */
+export const GOOGLE_MAPS_EMBED_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
+
 export const ROLE_CONTEXT: Record<AccountRole, { label: string; nameHint: string; tone: 'navy' | 'terracota' }> = {
     elder: {
         label: 'Idoso',

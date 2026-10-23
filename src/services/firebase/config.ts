@@ -9,14 +9,31 @@ import { getAuth, initializeAuth, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
+// Config comes only from the environment (.env locally, EAS environment variables in builds) —
+// never committed. Each var is read with a static `process.env.EXPO_PUBLIC_*` access because Expo
+// inlines only that exact form at build time (a dynamic process.env[name] would be undefined).
+function requireEnv(name: string, value: string | undefined): string {
+  if (!value) {
+    throw new Error(
+      `${name} não configurada. Copie .env.example para .env (local) ou crie a variável no EAS (builds).`
+    )
+  }
+  return value
+}
+
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? 'AIzaSyA_11LPGbNIiCwZTN1zLTKE9bgBWNH9efk',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? 'elder-29dc3.firebaseapp.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? 'elder-29dc3',
-  storageBucket:
-    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? 'elder-29dc3.firebasestorage.app',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '282903276795',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '1:282903276795:web:8722efa5f6e4de5e5d945e',
+  apiKey: requireEnv('EXPO_PUBLIC_FIREBASE_API_KEY', process.env.EXPO_PUBLIC_FIREBASE_API_KEY),
+  authDomain: requireEnv('EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN', process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: requireEnv('EXPO_PUBLIC_FIREBASE_PROJECT_ID', process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID),
+  storageBucket: requireEnv(
+    'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET',
+    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+  ),
+  messagingSenderId: requireEnv(
+    'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+  ),
+  appId: requireEnv('EXPO_PUBLIC_FIREBASE_APP_ID', process.env.EXPO_PUBLIC_FIREBASE_APP_ID),
 }
 
 const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig)
