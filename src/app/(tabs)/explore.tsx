@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { FAMILY_MEMBERS } from '@/data/care-private-data'
 import { useNearestTask } from '@/hooks/useNearestTask'
+import { useUserLocation } from '@/hooks/useUserLocation'
 import { ExploreScreen } from '@/screens/ExploreScreen'
 import { useAccount } from '@/state/account-context'
 
@@ -18,6 +19,7 @@ export default function Explore() {
     reschedule,
     assign,
   } = useNearestTask(account?.uid)
+  const location = useUserLocation()
 
   return (
     <ExploreScreen
@@ -30,6 +32,9 @@ export default function Explore() {
       onToggleTaskDone={toggleDone}
       onRescheduleTask={reschedule}
       onAssignTask={assign}
+      mapCenter={location.coords}
+      locationStatus={location.status}
+      onEnableLocation={location.enable}
       topInset={insets.top}
       bottomInset={insets.bottom}
       onLogout={async () => {
