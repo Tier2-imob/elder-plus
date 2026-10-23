@@ -1,6 +1,6 @@
 import { FloatingNav } from '@/components/FloatingNav'
 import { Logo } from '@/components/Logo'
-import { FamilyView, type FamilyManagement } from '@/components/care/FamilyView'
+import { FamilyView, type FamilyManagement, type FamilySelf } from '@/components/care/FamilyView'
 import { HealthView } from '@/components/care/HealthView'
 import { MedicationModal } from '@/components/care/MedicationModal'
 import { NewTaskModal } from '@/components/care/NewTaskModal'
@@ -50,6 +50,7 @@ export function CareScreen({
   circleName,
   circleMembers,
   familyManagement,
+  familySelf,
   onToggleDone,
   onReschedule,
   onAssign,
@@ -81,6 +82,8 @@ export function CareScreen({
   circleMembers: FamilyMember[]
   /** Invite/approve actions, only for members who manage the circle. */
   familyManagement?: FamilyManagement
+  /** The viewer's own phone and leaving. */
+  familySelf: FamilySelf
   onToggleDone: (taskId: string, isDone: boolean) => void
   onReschedule: (taskId: string, time: string) => void
   onAssign: (taskId: string, assignee: string) => void
@@ -227,7 +230,7 @@ export function CareScreen({
             onEditMedication={setMedicationForm}
           />
         ) : (
-          <FamilyView circleName={circleName} members={circleMembers} management={familyManagement} />
+          <FamilyView circleName={circleName} members={circleMembers} management={familyManagement} self={familySelf} />
         )}
       </ScrollView>
 

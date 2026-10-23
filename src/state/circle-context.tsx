@@ -18,7 +18,14 @@ import {
 import type { AccountRole } from '@/components/types';
 import { CIRCLE_CONSENT_VERSION } from '@/constants/constants';
 import { assertNotLockedOut, clearLockout, registerFailedAttempt } from '@/services/auth-lockout';
-import { canManage, checkInviteUsable, circleError, normalizeInviteCode } from '@/services/circle-rules';
+import {
+  canEditMember,
+  canLeave,
+  canManage,
+  checkInviteUsable,
+  circleError,
+  normalizeInviteCode,
+} from '@/services/circle-rules';
 import * as circles from '@/services/firebase/circles';
 import { migrateLegacyCareData } from '@/services/firebase/legacy-migration';
 import type { CircleDoc, CircleMemberDoc, InviteDoc } from '@/services/firebase/types';
@@ -49,8 +56,19 @@ type CircleValue = {
   createInvite: (input: { role: CircleRole; label?: string; permissions: PermissionKey[] }) => Promise<InviteDoc>
   revokeInvite: (code: string) => Promise<void>
   approveMember: (uid: string) => Promise<void>
-  /** Reject a pending member (or remove one). */
-  rejectMember: (uid: string) => Promise<void>
+  /** Reject a pending member or remove an active one. */
+  removeMember: (uid: string) => Promise<void>
+  /** Change another member's role, relation and permissions. */
+  updateMember: (
+    uid: string,
+    changes: { role: CircleRole; label: string | null; permissions: PermissionKey[] }
+  ) => Promise<void>
+
+  // ─── O próprio membro ───
+  /** Leave the circle (blocked for the titular and the last manager — see canLeave). */
+  leaveCircle: () => Promise<void>
+  /** Set or clear one's own phone (needed to be an emergency contact). */
+  updateMyPhone: (phone: string) => Promise<void>
 
   // ─── Convidado ───
   /** Find a usable invite by what the user typed. Throws circle/* or lockout errors. */
@@ -248,12 +266,43 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     [circleId, findMember]
   )
 
-  const rejectMember = useCallback(
+  const removeMember = useCallback(
     async (memberUid: string): Promise<void> => {
       if (!circleId) throw circleError('circle/not-allowed')
-      await circles.removeMember(circleId, findMember(memberUid))
+      const target = findMember(memberUid)
+      // Pending members can always be refused; active ones only if editable (never the titular).
+      if (target.status === 'ativo' && !canEditMember(membership, target)) throw circleError('circle/not-allowed')
+      await circles.removeMember(circleId, target, members)
     },
-    [circleId, findMember]
+    [circleId, findMember, membership, members]
+  )
+
+  const updateMember = useCallback(
+    async (
+      memberUid: string,
+      changes: { role: CircleRole; label: string | null; permissions: PermissionKey[] }
+    ): Promise<void> => {
+      if (!circle) throw circleError('circle/not-allowed')
+      const target = findMember(memberUid)
+      if (!canEditMember(membership, target)) throw circleError('circle/not-allowed')
+      await circles.updateMember(circle, target, changes, members)
+    },
+    [circle, findMember, membership, members]
+  )
+
+  const leave = useCallback(async (): Promise<void> => {
+    if (!circle || !membership) throw circleError('circle/not-allowed')
+    const blocked = canLeave(membership, members)
+    if (blocked) throw circleError(blocked)
+    await circles.leaveCircle(circle, membership)
+  }, [circle, membership, members])
+
+  const updateMyPhone = useCallback(
+    async (phone: string): Promise<void> => {
+      if (!circleId || !membership) throw circleError('circle/not-allowed')
+      await circles.updateOwnPhone(circleId, membership, phone)
+    },
+    [circleId, membership]
   )
 
   // Wrong codes count against a per-user lockout (5 tries, then a cooldown) so codes can't be
@@ -292,9 +341,9 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   )
 
   const cancelPending = useCallback(async (): Promise<void> => {
-    if (!circleId || !membership || membership.status !== 'pendente') return
-    await circles.leaveCircle(circleId, membership)
-  }, [circleId, membership])
+    if (!circle || !membership || membership.status !== 'pendente') return
+    await circles.leaveCircle(circle, membership)
+  }, [circle, membership])
 
   const circleLoading =
     !!uid &&
@@ -313,10 +362,13 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       createInvite,
       revokeInvite,
       approveMember,
-      rejectMember,
+      removeMember,
+      updateMember,
       lookupInvite,
       acceptInvite,
       cancelPending,
+      leaveCircle: leave,
+      updateMyPhone,
     }),
     [
       circleLoading,
@@ -328,10 +380,13 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       createInvite,
       revokeInvite,
       approveMember,
-      rejectMember,
+      removeMember,
+      updateMember,
       lookupInvite,
       acceptInvite,
       cancelPending,
+      leave,
+      updateMyPhone,
     ]
   )
 
@@ -364,10 +419,15 @@ function initialsOf(name: string): string {
   return (first + last).toUpperCase()
 }
 
-/** Member doc → the card shape the Família tab renders. */
-export function toFamilyMember(member: CircleMemberDoc): FamilyMember {
+/** Member doc → the card shape the Família tab renders, from `viewer`'s point of view. */
+export function toFamilyMember(member: CircleMemberDoc, viewer?: CircleMemberDoc | null): FamilyMember {
   const roleLabel = CIRCLE_ROLE_LABELS[member.role] ?? member.role
   return {
+    isSelf: !!viewer && viewer.uid === member.uid,
+    editable: canEditMember(viewer, member),
+    circleRole: member.role,
+    label: member.label,
+    phone: member.phone,
     id: member.uid,
     name: member.name,
     role: member.label ? `${member.label} — ${roleLabel}` : roleLabel,

@@ -149,10 +149,19 @@ export type PermissionKey =
 export type FamilyMember = {
   id: string
   name: string
+  /** Display line: "Filha — Familiar". */
   role: string
   initials: string
   lastAccess: string
   permissions: PermissionKey[]
+  /** The viewer's own card. */
+  isSelf?: boolean
+  /** The viewer may edit or remove this member. */
+  editable?: boolean
+  circleRole?: CircleRole
+  label?: string | null
+  /** Digits ("11912345678"), when the member registered one. */
+  phone?: string | null
 }
 
 /** An open invite as the Familia tab lists it. */

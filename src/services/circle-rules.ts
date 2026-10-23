@@ -26,6 +26,8 @@ export type CircleErrorCode =
   | 'circle/titular-exists'
   | 'circle/not-allowed'
   | 'circle/last-manager'
+  | 'circle/emergency-needs-phone'
+  | 'circle/invalid-phone'
 
 export function circleError(code: CircleErrorCode): Error & { code: CircleErrorCode } {
   const error = new Error(code) as Error & { code: CircleErrorCode }
@@ -44,7 +46,11 @@ const MESSAGES: Record<CircleErrorCode, string> = {
   'circle/invite-revoked': 'Este convite foi cancelado.',
   'circle/titular-exists': 'A pessoa assistida já tem uma conta vinculada a este círculo.',
   'circle/not-allowed': 'Você não tem permissão para esta ação.',
-  'circle/last-manager': 'Você é a última pessoa que gerencia o círculo. Transfira essa função antes de sair.',
+  'circle/last-manager':
+    'Você é a última pessoa que gerencia o círculo. Antes de sair, torne outro membro Administrador.',
+  'circle/emergency-needs-phone':
+    'Para ser contato de emergência, a pessoa precisa cadastrar o telefone dela na aba Família.',
+  'circle/invalid-phone': 'Digite o telefone com DDD, só números. Ex: 11 91234-5678.',
 }
 
 export function circleErrorMessage(error: unknown): string {
@@ -97,6 +103,25 @@ export function canLeave(member: CircleMemberDoc, members: CircleMemberDoc[]): C
     return 'circle/last-manager'
   }
   return null
+}
+
+/** Active members holding `emergencia`, optionally leaving one member out. */
+export function countEmergencyContacts(members: CircleMemberDoc[], exceptUid?: string): number {
+  return members.filter((m) => m.uid !== exceptUid && hasPermission(m, 'emergencia')).length
+}
+
+/** Brazilian phone with area code: 10 or 11 digits. Returns the digits, or null if invalid. */
+export function normalizePhone(input: string): string | null {
+  const digits = input.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
+  return digits.length === 10 || digits.length === 11 ? digits : null
+}
+
+/** "11912345678" → "(11) 91234-5678". */
+export function formatPhone(digits: string): string {
+  const ddd = digits.slice(0, 2)
+  const rest = digits.slice(2)
+  const cut = rest.length === 9 ? 5 : 4
+  return `(${ddd}) ${rest.slice(0, cut)}-${rest.slice(cut)}`
 }
 
 /** Can this tasks' responsible person be `member`? Active and able to see the routine. */

@@ -6,7 +6,7 @@ import { APPOINTMENT_STATS, FAMILY_MEMBERS, HEALTH_REMINDERS } from '@/data/care
 import { useMedications } from '@/hooks/useMedications'
 import { CareScreen } from '@/screens/CareScreen'
 import { CircleSetupScreen, type CircleSetupMode, type InvitePreview } from '@/screens/CircleSetupScreen'
-import { canManage, circleErrorMessage, hasPermission } from '@/services/circle-rules'
+import { canLeave, canManage, circleErrorMessage, formatPhone, hasPermission } from '@/services/circle-rules'
 import type { InviteDoc } from '@/services/firebase/types'
 import { useAccount } from '@/state/account-context'
 import { useCareTasks } from '@/state/care-tasks-context'
@@ -46,6 +46,12 @@ function toInvitePreview(invite: InviteDoc): InvitePreview {
   }
 }
 
+function leaveBlockedReason(code: ReturnType<typeof canLeave>): string | undefined {
+  if (code === 'circle/not-allowed') return 'Como pessoa assistida, você é o centro do círculo e não pode sair dele.'
+  if (code === 'circle/last-manager') return circleErrorMessage({ code })
+  return undefined
+}
+
 export default function Care() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -72,7 +78,10 @@ export default function Care() {
     createInvite,
     revokeInvite,
     approveMember,
-    rejectMember,
+    removeMember,
+    updateMember,
+    leaveCircle,
+    updateMyPhone,
     lookupInvite,
     acceptInvite,
     cancelPending,
@@ -129,14 +138,21 @@ export default function Care() {
       healthStats={APPOINTMENT_STATS}
       familyMembers={FAMILY_MEMBERS}
       circleName={circle.subject.name}
-      circleMembers={members.filter((m) => m.status === 'ativo').map(toFamilyMember)}
+      circleMembers={members.filter((m) => m.status === 'ativo').map((m) => toFamilyMember(m, membership))}
+      familySelf={{
+        phone: membership.phone,
+        formatPhone,
+        onSavePhone: inPortuguese('updateMyPhone', updateMyPhone),
+        onLeave: inPortuguese('leaveCircle', leaveCircle),
+        leaveBlockedReason: leaveBlockedReason(canLeave(membership, members)),
+      }}
       familyManagement={
         canManage(membership)
           ? {
               inviterName: membership.name,
               canInviteTitular: circle.subject.uid === null,
               grantable: membership.permissions,
-              pendingMembers: members.filter((m) => m.status === 'pendente').map(toFamilyMember),
+              pendingMembers: members.filter((m) => m.status === 'pendente').map((m) => toFamilyMember(m, membership)),
               invites: invites.map((i) => ({
                 code: i.code,
                 roleLabel: roleLabelOf(i),
@@ -147,7 +163,9 @@ export default function Care() {
                 return { code: invite.code, expiresAt: invite.expiresAt.toDate() }
               }),
               onApprove: inPortuguese('approveMember', approveMember),
-              onReject: inPortuguese('rejectMember', rejectMember),
+              onReject: inPortuguese('removeMember', removeMember),
+              onRemoveMember: inPortuguese('removeMember', removeMember),
+              onUpdateMember: inPortuguese('updateMember', updateMember),
               onRevokeInvite: inPortuguese('revokeInvite', revokeInvite),
             }
           : undefined

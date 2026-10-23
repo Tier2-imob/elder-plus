@@ -1,8 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useState } from 'react'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, Text, TextInput, View } from 'react-native'
 
 import { InviteModal } from './InviteModal'
+import { MemberEditModal } from './MemberEditModal'
 import {
   PERMISSION_LABELS,
   type CircleRole,
@@ -27,6 +28,111 @@ export type FamilyManagement = {
   onApprove: (memberId: string) => Promise<void>
   onReject: (memberId: string) => Promise<void>
   onRevokeInvite: (code: string) => Promise<void>
+  onUpdateMember: (
+    memberId: string,
+    changes: { role: CircleRole; label: string | null; permissions: PermissionKey[] }
+  ) => Promise<void>
+  onRemoveMember: (memberId: string) => Promise<void>
+}
+
+/** What every member can do about their own participation. */
+export type FamilySelf = {
+  /** Digits, or null. */
+  phone: string | null
+  /** Formats digits for display ("(11) 91234-5678"). */
+  formatPhone: (digits: string) => string
+  /** Both reject with a user-facing PT message. */
+  onSavePhone: (phone: string) => Promise<void>
+  onLeave: () => Promise<void>
+  /** Why leaving is not possible right now (titular, last manager), if so. */
+  leaveBlockedReason?: string
+}
+
+/** "Você neste círculo": own phone and leaving. */
+function SelfSection({ self }: { self: FamilySelf }) {
+  const [phone, setPhone] = useState(self.phone ? self.formatPhone(self.phone) : '')
+  const [busy, setBusy] = useState<'phone' | 'leave' | null>(null)
+  const [confirmLeave, setConfirmLeave] = useState(false)
+  const [message, setMessage] = useState<{ text: string; error: boolean } | undefined>(undefined)
+
+  async function run(kind: 'phone' | 'leave', action: () => Promise<void>, success?: string) {
+    if (busy) return
+    setBusy(kind)
+    setMessage(undefined)
+    try {
+      await action()
+      if (success) setMessage({ text: success, error: false })
+    } catch (e) {
+      setMessage({ text: e instanceof Error ? e.message : 'Não foi possível concluir.', error: true })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <View className="mt-4 rounded-3xl border border-hairline bg-white p-5">
+      <Text accessibilityRole="header" className="font-hanken-bold text-navy text-lg mb-3">
+        Você neste círculo
+      </Text>
+      <Text className="font-hanken-medium text-navy text-[15px] mb-2">Meu telefone</Text>
+      <View className="flex-row items-center gap-2">
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="(11) 91234-5678"
+          placeholderTextColor="#6B7A85"
+          keyboardType="phone-pad"
+          autoComplete="tel"
+          textContentType="telephoneNumber"
+          accessibilityLabel="Meu telefone, com DDD"
+          className="flex-1 min-h-[56px] rounded-2xl border-[1.6px] border-hairline bg-white px-4 font-hanken-medium text-base text-ink"
+        />
+        <SmallAction
+          label="Salvar"
+          accessibilityLabel="Salvar meu telefone"
+          tone="primary"
+          busy={busy === 'phone'}
+          onPress={() => run('phone', () => self.onSavePhone(phone), 'Telefone salvo.')}
+        />
+      </View>
+      <Text className="font-hanken text-muted text-sm leading-5 mt-2">
+        Necessário para ser contato de emergência. Só quem participa do círculo vê.
+      </Text>
+
+      {message ? (
+        <Text
+          accessibilityRole={message.error ? 'alert' : undefined}
+          accessibilityLiveRegion="polite"
+          className="font-hanken-medium text-[15px] leading-[22px] mt-3"
+          style={{ color: message.error ? '#DD7C54' : '#388E3C' }}
+        >
+          {message.text}
+        </Text>
+      ) : null}
+
+      {self.leaveBlockedReason ? (
+        <Text className="font-hanken text-muted text-sm leading-5 mt-5">{self.leaveBlockedReason}</Text>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={confirmLeave ? 'Confirmar saída do círculo' : 'Sair do círculo'}
+          accessibilityState={{ busy: busy === 'leave', disabled: !!busy }}
+          disabled={!!busy}
+          onPress={() => (confirmLeave ? run('leave', self.onLeave) : setConfirmLeave(true))}
+          className="min-h-[56px] items-center justify-center rounded-2xl mt-5 px-4 active:opacity-70"
+          style={{ backgroundColor: 'rgba(192,57,43,0.08)' }}
+        >
+          {busy === 'leave' ? (
+            <ActivityIndicator size="small" color="#C0392B" />
+          ) : (
+            <Text className="font-hanken-bold text-base text-center" style={{ color: '#C0392B' }}>
+              {confirmLeave ? 'Toque de novo para sair do círculo' : 'Sair do círculo'}
+            </Text>
+          )}
+        </Pressable>
+      )}
+    </View>
+  )
 }
 
 function SectionTitle({ children }: { children: string }) {
@@ -81,13 +187,16 @@ export function FamilyView({
   circleName,
   members,
   management,
+  self,
 }: {
   circleName: string
   members: FamilyMember[]
   /** Present when the viewer can manage members (convidar, aprovar). */
   management?: FamilyManagement
+  self: FamilySelf
 }) {
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [editing, setEditing] = useState<FamilyMember | null>(null)
   // The row action in flight ("approve:<id>", "revoke:<code>"...), and the last action error.
   const [busy, setBusy] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | undefined>(undefined)
@@ -205,20 +314,48 @@ export function FamilyView({
                 </Text>
               </View>
               <View className="flex-1">
-                <View className="flex-row items-center gap-2">
-                  <Text className="font-hanken-extrabold text-navy text-base">{member.name}</Text>
-                  {isEmergency ? (
-                    <MaterialIcons name="emergency" size={16} color="#C0392B" />
+                <View className="flex-row flex-wrap items-center gap-2">
+                  <Text className="font-hanken-extrabold text-navy text-[17px]">{member.name}</Text>
+                  {member.isSelf ? (
+                    <View className="px-2 py-0.5 rounded-full bg-navy/10">
+                      <Text className="font-hanken-bold text-navy text-xs">Você</Text>
+                    </View>
                   ) : null}
+                  {isEmergency ? <MaterialIcons name="emergency" size={18} color="#C0392B" /> : null}
                 </View>
-                <Text className="font-hanken text-muted text-[13px]">{member.role}</Text>
+                <Text className="font-hanken text-muted text-[15px]">{member.role}</Text>
               </View>
+              {management && member.editable ? (
+                <SmallAction
+                  label="Editar"
+                  accessibilityLabel={`Editar ${member.name}`}
+                  tone="neutral"
+                  busy={false}
+                  onPress={() => setEditing(member)}
+                />
+              ) : null}
             </View>
+
+            {/* Contato de emergência: telefone + ligar */}
+            {isEmergency && member.phone && !member.isSelf ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Ligar para ${member.name}, ${self.formatPhone(member.phone)}`}
+                onPress={() => void Linking.openURL(`tel:${member.phone}`)}
+                className="min-h-[56px] flex-row items-center gap-3 rounded-2xl px-4 mb-3 active:opacity-70"
+                style={{ backgroundColor: 'rgba(192,57,43,0.08)' }}
+              >
+                <MaterialIcons name="call" size={22} color="#C0392B" />
+                <Text className="flex-1 font-hanken-bold text-base" style={{ color: '#C0392B' }}>
+                  Ligar · {self.formatPhone(member.phone)}
+                </Text>
+              </Pressable>
+            ) : null}
 
             {/* Último acesso */}
             <View className="flex-row items-center gap-1.5 mb-3">
-              <MaterialIcons name="history" size={14} color="#6B7A85" />
-              <Text className="font-hanken text-muted text-xs">Último acesso: {member.lastAccess}</Text>
+              <MaterialIcons name="history" size={16} color="#6B7A85" />
+              <Text className="font-hanken text-muted text-sm">Último acesso: {member.lastAccess}</Text>
             </View>
 
             {/* Permissões ativas */}
@@ -233,7 +370,7 @@ export function FamilyView({
                   }}
                 >
                   <Text
-                    className="font-hanken-bold text-[11px]"
+                    className="font-hanken-bold text-xs"
                     style={{ color: permission === 'emergencia' ? '#C0392B' : '#11375C' }}
                   >
                     {PERMISSION_LABELS[permission]}
@@ -272,6 +409,18 @@ export function FamilyView({
             </View>
           ))}
         </View>
+      ) : null}
+
+      <SelfSection self={self} />
+
+      {editing && management ? (
+        <MemberEditModal
+          member={editing}
+          grantable={management.grantable}
+          onSave={(changes) => management.onUpdateMember(editing.id, changes)}
+          onRemove={() => management.onRemoveMember(editing.id)}
+          onClose={() => setEditing(null)}
+        />
       ) : null}
 
       {inviteOpen && management ? (

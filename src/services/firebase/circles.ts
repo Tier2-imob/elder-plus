@@ -29,7 +29,9 @@ import {
   checkCanInvite,
   checkInviteUsable,
   circleError,
+  countEmergencyContacts,
   makeInviteCode,
+  normalizePhone,
   withImpliedPermissions,
 } from '@/services/circle-rules'
 
@@ -325,28 +327,42 @@ export async function approveMember(circleId: string, member: CircleMemberDoc): 
 /**
  * Reject a pending member or remove an active one. Their users/{uid}.circleId cannot be written
  * by the manager; `clearStaleCircle` clears it on the removed user's next access.
+ *
+ * `emergencyCount` is recounted from the member list (`members`, everyone in the circle) instead of
+ * decremented: circles created before this recount started with the creator holding `emergencia`
+ * but a count of 0, and incrementing would carry that error forever.
  */
-export async function removeMember(circleId: string, member: CircleMemberDoc): Promise<void> {
+export async function removeMember(
+  circleId: string,
+  member: CircleMemberDoc,
+  members: CircleMemberDoc[]
+): Promise<void> {
   const batch = writeBatch(db)
   batch.delete(memberRef(circleId, member.uid))
   batch.update(circleRef(circleId), {
     memberCount: increment(-1),
-    ...(member.permissions.includes('emergencia') ? { emergencyCount: increment(-1) } : {}),
+    emergencyCount: countEmergencyContacts(members, member.uid),
   })
   await batch.commit()
 }
 
-/** Change another member's role, label and permissions (editar implies ver). */
+/**
+ * Change another member's role, label and permissions (editar implies ver). Becoming an emergency
+ * contact needs the member's phone and a free slot (CIRCLE_LIMITS.maxEmergencyContacts); the
+ * circle's `emergencyCount` is rewritten from the actual members.
+ */
 export async function updateMember(
   circle: CircleDoc,
   member: CircleMemberDoc,
-  changes: { role: CircleRole; label: string | null; permissions: PermissionKey[] }
+  changes: { role: CircleRole; label: string | null; permissions: PermissionKey[] },
+  members: CircleMemberDoc[]
 ): Promise<void> {
   const permissions = withImpliedPermissions(changes.permissions)
-  const wasEmergency = member.permissions.includes('emergencia')
   const isEmergency = permissions.includes('emergencia')
-  if (isEmergency && !wasEmergency && circle.emergencyCount >= CIRCLE_LIMITS.maxEmergencyContacts) {
-    throw circleError('circle/emergency-full')
+  const others = countEmergencyContacts(members, member.uid)
+  if (isEmergency && !member.permissions.includes('emergencia')) {
+    if (!member.phone) throw circleError('circle/emergency-needs-phone')
+    if (others >= CIRCLE_LIMITS.maxEmergencyContacts) throw circleError('circle/emergency-full')
   }
 
   const batch = writeBatch(db)
@@ -355,21 +371,23 @@ export async function updateMember(
     label: changes.label?.trim() || null,
     permissions,
   })
-  if (isEmergency !== wasEmergency) {
-    batch.update(circleRef(circle.id), { emergencyCount: increment(isEmergency ? 1 : -1) })
-  }
+  batch.update(circleRef(circle.id), { emergencyCount: Math.min(others + (isEmergency ? 1 : 0), CIRCLE_LIMITS.maxEmergencyContacts) })
   await batch.commit()
 }
 
 // ─── O próprio membro ──────────────────────────────────────────────────────────
 
-/** Leave the circle (never the titular; the last manager must transfer first — see canLeave). */
-export async function leaveCircle(circleId: string, member: CircleMemberDoc): Promise<void> {
+/**
+ * Leave the circle (never the titular; the last manager must transfer first — see canLeave). The
+ * rules only let a leaver lower `emergencyCount` by one, so it is decremented — clamped at 0 for
+ * circles whose count was never raised for the creator.
+ */
+export async function leaveCircle(circle: CircleDoc, member: CircleMemberDoc): Promise<void> {
   const batch = writeBatch(db)
-  batch.delete(memberRef(circleId, member.uid))
-  batch.update(circleRef(circleId), {
+  batch.delete(memberRef(circle.id, member.uid))
+  batch.update(circleRef(circle.id), {
     memberCount: increment(-1),
-    ...(member.permissions.includes('emergencia') ? { emergencyCount: increment(-1) } : {}),
+    emergencyCount: Math.max(0, circle.emergencyCount - (member.permissions.includes('emergencia') ? 1 : 0)),
   })
   batch.update(userRef(member.uid), { circleId: null })
   await batch.commit()
@@ -379,6 +397,14 @@ export async function touchLastAccess(circleId: string, uid: string): Promise<vo
   await updateDoc(memberRef(circleId, uid), { lastAccess: serverTimestamp() })
 }
 
-export async function updateOwnPhone(circleId: string, uid: string, phone: string | null): Promise<void> {
-  await updateDoc(memberRef(circleId, uid), { phone: phone?.trim() || null })
+/**
+ * The member's own phone (only the member can write it). Empty clears it — not allowed while they
+ * are an emergency contact, who must stay reachable.
+ */
+export async function updateOwnPhone(circleId: string, member: CircleMemberDoc, input: string): Promise<void> {
+  const trimmed = input.trim()
+  if (!trimmed && member.permissions.includes('emergencia')) throw circleError('circle/emergency-needs-phone')
+  const phone = trimmed ? normalizePhone(trimmed) : null
+  if (trimmed && !phone) throw circleError('circle/invalid-phone')
+  await updateDoc(memberRef(circleId, member.uid), { phone })
 }
