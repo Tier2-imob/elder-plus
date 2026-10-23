@@ -24,10 +24,10 @@ export function doseId(medicationId: string, date: string, time: string): string
   return `${medicationId}_${date}_${time.replace(':', '')}`
 }
 
-/** List medications under users/{uid}/medications, oldest first. */
-export async function listMedications(uid: string): Promise<MedicationDoc[]> {
+/** List medications under circles/{circleId}/medications, oldest first. */
+export async function listMedications(circleId: string): Promise<MedicationDoc[]> {
   const snap = await getDocs(
-    query(collection(db, 'users', uid, 'medications'), orderBy('createdAt', 'asc'))
+    query(collection(db, 'circles', circleId, 'medications'), orderBy('createdAt', 'asc'))
   )
   return snap.docs.map((d) => {
     const data = d.data()
@@ -49,8 +49,8 @@ export async function listMedications(uid: string): Promise<MedicationDoc[]> {
  * Create a medication with an auto-generated id. The returned doc carries the local time as a
  * stand-in for the server `createdAt` until the next `listMedications`.
  */
-export async function createMedication(uid: string, input: MedicationFields): Promise<MedicationDoc> {
-  const ref = await addDoc(collection(db, 'users', uid, 'medications'), {
+export async function createMedication(circleId: string, input: MedicationFields): Promise<MedicationDoc> {
+  const ref = await addDoc(collection(db, 'circles', circleId, 'medications'), {
     ...input,
     createdAt: serverTimestamp(),
   })
@@ -59,28 +59,28 @@ export async function createMedication(uid: string, input: MedicationFields): Pr
 
 /** Overwrite the editable fields of a medication (createdAt is kept). */
 export async function updateMedication(
-  uid: string,
+  circleId: string,
   medicationId: string,
   input: MedicationFields
 ): Promise<void> {
-  await updateDoc(doc(db, 'users', uid, 'medications', medicationId), { ...input })
+  await updateDoc(doc(db, 'circles', circleId, 'medications', medicationId), { ...input })
 }
 
 /** Delete a medication and every dose registered for it. */
-export async function deleteMedication(uid: string, medicationId: string): Promise<void> {
+export async function deleteMedication(circleId: string, medicationId: string): Promise<void> {
   const doses = await getDocs(
-    query(collection(db, 'users', uid, 'medicationDoses'), where('medicationId', '==', medicationId))
+    query(collection(db, 'circles', circleId, 'medicationDoses'), where('medicationId', '==', medicationId))
   )
   const batch = writeBatch(db)
   doses.docs.forEach((d) => batch.delete(d.ref))
-  batch.delete(doc(db, 'users', uid, 'medications', medicationId))
+  batch.delete(doc(db, 'circles', circleId, 'medications', medicationId))
   await batch.commit()
 }
 
 /** List doses registered on or after `fromDate` ("YYYY-MM-DD"), across all medications. */
-export async function listDosesSince(uid: string, fromDate: string): Promise<MedicationDoseDoc[]> {
+export async function listDosesSince(circleId: string, fromDate: string): Promise<MedicationDoseDoc[]> {
   const snap = await getDocs(
-    query(collection(db, 'users', uid, 'medicationDoses'), where('date', '>=', fromDate))
+    query(collection(db, 'circles', circleId, 'medicationDoses'), where('date', '>=', fromDate))
   )
   return snap.docs.map((d) => {
     const data = d.data()
@@ -101,25 +101,25 @@ export async function listDosesSince(uid: string, fromDate: string): Promise<Med
  * the same batch (a batch, not a transaction, so it also queues while offline).
  */
 export async function recordDose(
-  uid: string,
+  circleId: string,
   dose: Omit<MedicationDoseDoc, 'id' | 'recordedAt'>
 ): Promise<MedicationDoseDoc> {
   const id = doseId(dose.medicationId, dose.date, dose.time)
   const batch = writeBatch(db)
-  batch.set(doc(db, 'users', uid, 'medicationDoses', id), { ...dose, recordedAt: serverTimestamp() })
+  batch.set(doc(db, 'circles', circleId, 'medicationDoses', id), { ...dose, recordedAt: serverTimestamp() })
   if (dose.stockDecremented) {
-    batch.update(doc(db, 'users', uid, 'medications', dose.medicationId), { stock: increment(-1) })
+    batch.update(doc(db, 'circles', circleId, 'medications', dose.medicationId), { stock: increment(-1) })
   }
   await batch.commit()
   return { id, ...dose, recordedAt: Timestamp.now() }
 }
 
 /** Remove a registered dose, giving the unit back to the stock if registering it took one. */
-export async function undoDose(uid: string, dose: MedicationDoseDoc): Promise<void> {
+export async function undoDose(circleId: string, dose: MedicationDoseDoc): Promise<void> {
   const batch = writeBatch(db)
-  batch.delete(doc(db, 'users', uid, 'medicationDoses', dose.id))
+  batch.delete(doc(db, 'circles', circleId, 'medicationDoses', dose.id))
   if (dose.stockDecremented) {
-    batch.update(doc(db, 'users', uid, 'medications', dose.medicationId), { stock: increment(1) })
+    batch.update(doc(db, 'circles', circleId, 'medications', dose.medicationId), { stock: increment(1) })
   }
   await batch.commit()
 }

@@ -82,34 +82,38 @@ function weeklyAdherence(docs: MedicationDoc[], doses: MedicationDoseDoc[]): num
  * undo are optimistic (stock included) and roll back on failure; create/update/remove are not
  * (the form needs to know it failed) and throw so the modal can show the error.
  */
-export function useMedications(uid: string | undefined) {
+/**
+ * `circleId` is the circle whose health data to load; pass undefined while the circle is not ready
+ * or the member lacks `ver-saude` (the rules deny the read otherwise).
+ */
+export function useMedications(circleId: string | undefined) {
   const [docs, setDocs] = useState<MedicationDoc[]>([])
   const [doses, setDoses] = useState<MedicationDoseDoc[]>([])
-  const [medicationsLoading, setMedicationsLoading] = useState(uid !== undefined)
+  const [medicationsLoading, setMedicationsLoading] = useState(circleId !== undefined)
   const [medicationsError, setMedicationsError] = useState<string | undefined>(undefined)
 
   // Dose ids with a write in flight. A fast double tap fires twice before `doses` re-renders, so
   // the state check alone would record the slot (and take the stock) twice.
   const pendingDoseIds = useRef<Set<string>>(new Set())
 
-  // Reset during render when the uid changes (same pattern as CareTasksProvider).
-  const [loadedForUid, setLoadedForUid] = useState(uid)
-  if (loadedForUid !== uid) {
-    setLoadedForUid(uid)
+  // Reset during render when the circle changes (same pattern as CareTasksProvider).
+  const [loadedFor, setLoadedFor] = useState(circleId)
+  if (loadedFor !== circleId) {
+    setLoadedFor(circleId)
     setDocs([])
     setDoses([])
     setMedicationsError(undefined)
-    setMedicationsLoading(uid !== undefined)
+    setMedicationsLoading(circleId !== undefined)
   }
 
   useEffect(() => {
-    if (!uid) return
+    if (!circleId) return
 
     let active = true
 
     Promise.all([
-      medications.listMedications(uid),
-      medications.listDosesSince(uid, dateKey(daysAgo(WINDOW_DAYS - 1))),
+      medications.listMedications(circleId),
+      medications.listDosesSince(circleId, dateKey(daysAgo(WINDOW_DAYS - 1))),
     ])
       .then(([loadedMeds, loadedDoses]) => {
         if (!active) return
@@ -127,7 +131,7 @@ export function useMedications(uid: string | undefined) {
     return () => {
       active = false
     }
-  }, [uid])
+  }, [circleId])
 
   const adjustStock = (medicationId: string, delta: number) =>
     setDocs((prev) =>
@@ -137,7 +141,7 @@ export function useMedications(uid: string | undefined) {
   /** Register today's `time` slot as taken (on time or late, by the clock) or skipped. */
   const recordDose = useCallback(
     async (medicationId: string, time: string, taken: boolean): Promise<void> => {
-      if (!uid) return
+      if (!circleId) return
       const med = docs.find((d) => d.id === medicationId)
       if (!med) return
 
@@ -159,7 +163,7 @@ export function useMedications(uid: string | undefined) {
       if (stockDecremented) adjustStock(medicationId, -1)
 
       try {
-        await medications.recordDose(uid, { medicationId, date, time, state, stockDecremented })
+        await medications.recordDose(circleId, { medicationId, date, time, state, stockDecremented })
       } catch (e) {
         console.warn('recordDose failed', e)
         setDoses((prev) => prev.filter((d) => d.id !== id))
@@ -169,13 +173,13 @@ export function useMedications(uid: string | undefined) {
         pendingDoseIds.current.delete(id)
       }
     },
-    [uid, docs, doses]
+    [circleId, docs, doses]
   )
 
   /** Undo today's registration of the `time` slot. */
   const undoDose = useCallback(
     async (medicationId: string, time: string): Promise<void> => {
-      if (!uid) return
+      if (!circleId) return
       const id = medications.doseId(medicationId, dateKey(new Date()), time)
       const dose = doses.find((d) => d.id === id)
       if (!dose || pendingDoseIds.current.has(id)) return
@@ -186,7 +190,7 @@ export function useMedications(uid: string | undefined) {
       if (dose.stockDecremented) adjustStock(medicationId, 1)
 
       try {
-        await medications.undoDose(uid, dose)
+        await medications.undoDose(circleId, dose)
       } catch (e) {
         console.warn('undoDose failed', e)
         setDoses((prev) => [...prev, dose])
@@ -196,35 +200,35 @@ export function useMedications(uid: string | undefined) {
         pendingDoseIds.current.delete(id)
       }
     },
-    [uid, doses]
+    [circleId, doses]
   )
 
   const create = useCallback(
     async (input: MedicationInput): Promise<void> => {
-      if (!uid) throw new Error('No signed-in user')
-      const created = await medications.createMedication(uid, input)
+      if (!circleId) throw new Error('No signed-in user')
+      const created = await medications.createMedication(circleId, input)
       setDocs((prev) => [...prev, created])
     },
-    [uid]
+    [circleId]
   )
 
   const update = useCallback(
     async (medicationId: string, input: MedicationInput): Promise<void> => {
-      if (!uid) throw new Error('No signed-in user')
-      await medications.updateMedication(uid, medicationId, input)
+      if (!circleId) throw new Error('No signed-in user')
+      await medications.updateMedication(circleId, medicationId, input)
       setDocs((prev) => prev.map((d) => (d.id === medicationId ? { ...d, ...input } : d)))
     },
-    [uid]
+    [circleId]
   )
 
   const remove = useCallback(
     async (medicationId: string): Promise<void> => {
-      if (!uid) throw new Error('No signed-in user')
-      await medications.deleteMedication(uid, medicationId)
+      if (!circleId) throw new Error('No signed-in user')
+      await medications.deleteMedication(circleId, medicationId)
       setDocs((prev) => prev.filter((d) => d.id !== medicationId))
       setDoses((prev) => prev.filter((d) => d.medicationId !== medicationId))
     },
-    [uid]
+    [circleId]
   )
 
   const today = dateKey(new Date())

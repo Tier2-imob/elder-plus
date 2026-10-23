@@ -13,13 +13,17 @@ import { CIRCLE_ROLE_LABELS, type FamilyMember } from '@/components/care/types';
 import type { AccountRole } from '@/components/types';
 import { CIRCLE_CONSENT_VERSION } from '@/constants/constants';
 import * as circles from '@/services/firebase/circles';
+import { migrateLegacyCareData } from '@/services/firebase/legacy-migration';
 import type { CircleDoc, CircleMemberDoc } from '@/services/firebase/types';
 import * as users from '@/services/firebase/users';
 
 type CircleAccount = { uid: string; name: string; role: AccountRole } | null
 
 type CircleValue = {
-  /** True until we know whether the user has a circle (and, if so, their membership in it). */
+  /**
+   * True until we know whether the user has a circle (and, if so, their membership in it), and
+   * while the creator's pre-circle data is being moved into it.
+   */
   circleLoading: boolean
   circle: CircleDoc | null
   /** The signed-in user's own member doc (active or pending), or null without a circle. */
@@ -120,6 +124,28 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     circles.touchLastAccess(circleId, uid).catch((e) => console.warn('touchLastAccess failed', e))
   }, [uid, circleId, isActive])
 
+  // The creator's care data from before circles (users/{uid}/tasks, medications, doses) moves into
+  // their circle once. Invited members never migrate: their old data is not this circle's. A
+  // failure does not block the app (the data stays where it was and is retried on the next start).
+  const needsMigration = !!uid && !!circleId && isActive && circle?.createdBy === uid
+  const [migratedFor, setMigratedFor] = useState<string | null>(null)
+  useEffect(() => {
+    if (!uid || !circleId || !needsMigration || migratedFor === circleId) return
+    let active = true
+    migrateLegacyCareData(uid, circleId)
+      .then((moved) => {
+        if (moved) console.log(`migrated ${moved} legacy care docs into circle ${circleId}`)
+      })
+      .catch((e) => console.warn('migrateLegacyCareData failed', e))
+      .finally(() => {
+        if (active) setMigratedFor(circleId)
+      })
+    return () => {
+      active = false
+    }
+  }, [uid, circleId, needsMigration, migratedFor])
+  const migrating = needsMigration && migratedFor !== circleId
+
   const createCircle = useCallback(
     async (subjectName?: string): Promise<void> => {
       if (!account) throw new Error('No signed-in user')
@@ -138,7 +164,9 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   // A failed circle read resolves to null (treated as "no circle"), so this never sticks.
   const circleLoading =
     !!uid &&
-    (circleId === undefined || (!!circleId && (membership === undefined || (!!membership && circle === undefined))))
+    (circleId === undefined ||
+      migrating ||
+      (!!circleId && (membership === undefined || (!!membership && circle === undefined))))
 
   const value = useMemo<CircleValue>(
     () => ({

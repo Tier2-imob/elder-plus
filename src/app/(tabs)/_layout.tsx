@@ -14,7 +14,7 @@ export default function TabsLayout() {
 
   return (
     <CircleProvider account={account}>
-      <CareTasksProvider uid={account?.uid}>
+      <CareTasksProvider>
         <Tabs screenOptions={{ headerShown: false }} tabBar={() => null}>
           <Tabs.Screen name="explore" />
           <Tabs.Screen name="care" />

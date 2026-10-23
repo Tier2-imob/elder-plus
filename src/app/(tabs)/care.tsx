@@ -5,7 +5,7 @@ import { APPOINTMENT_STATS, FAMILY_MEMBERS, HEALTH_REMINDERS } from '@/data/care
 import { useMedications } from '@/hooks/useMedications'
 import { CareScreen } from '@/screens/CareScreen'
 import { CircleSetupScreen, type CircleSetupMode } from '@/screens/CircleSetupScreen'
-import { circleErrorMessage } from '@/services/circle-rules'
+import { circleErrorMessage, hasPermission } from '@/services/circle-rules'
 import { useAccount } from '@/state/account-context'
 import { useCareTasks } from '@/state/care-tasks-context'
 import { toFamilyMember, useCircle } from '@/state/circle-context'
@@ -16,8 +16,10 @@ export default function Care() {
   const { account } = useAccount()
   const { tasks, doneIds, tasksLoading, create, complete, uncomplete, rescheduleTime, assignTo } =
     useCareTasks()
-  const meds = useMedications(account?.uid)
   const { circleLoading, circle, membership, members, createCircle } = useCircle()
+  const meds = useMedications(
+    !circleLoading && circle && hasPermission(membership, 'ver-saude') ? circle.id : undefined
+  )
 
   const onNavigate = (key: string) => {
     // navigate (not replace): switches back to the mounted Explore tab; replace stacked a new

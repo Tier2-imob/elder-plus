@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -17,42 +16,19 @@ import {
   type Task,
   type TaskCategory,
 } from '@/components/care/types';
-import type { TaskSeed } from '@/services/firebase/tasks';
+import { hasPermission } from '@/services/circle-rules';
 import * as tasks from '@/services/firebase/tasks';
 import type { TaskDoc } from '@/services/firebase/types';
 import { readCache, writeCache } from '@/services/local-cache';
+import { useCircle } from '@/state/circle-context';
 
 function isTaskCategory(value: string | undefined): value is TaskCategory {
   return value !== undefined && value in TASK_CATEGORIES
 }
 
 /**
- * Initial tasks seeded for a user with no stored tasks. Carries the exact glyph strings
- * (`favorite-border` for t1, `medication` for t2) and an explicit `order` so they render in the
- * same sequence as before.
- */
-const SEED: TaskSeed[] = [
-  {
-    dayKey: 'wed',
-    title: 'Consulta cardiologista',
-    time: '09:30',
-    day: 'Quarta-feira, 14',
-    icon: 'favorite-border',
-    order: 0,
-  },
-  {
-    dayKey: 'wed',
-    title: 'Tomar medicação — Losartana',
-    time: '12:00',
-    day: 'Quarta-feira, 14',
-    icon: 'medication',
-    order: 1,
-  },
-]
-
-/**
- * Map a Firestore TaskDoc to the screen's Task. The icon cast is sound because `seedTasks` persists
- * the exact glyph names from SEED, which are real MaterialIcons glyph keys.
+ * Map a Firestore TaskDoc to the screen's Task. The icon cast is sound because tasks are created
+ * with TASK_CATEGORIES icons, which are real MaterialIcons glyph keys.
  */
 function toTask(doc: TaskDoc): Task {
   return {
@@ -73,7 +49,7 @@ function toTask(doc: TaskDoc): Task {
 /** TaskDoc as stored in the local cache (Timestamp is not JSON-serializable). */
 type CachedTaskDoc = Omit<TaskDoc, 'createdAt'> & { createdAtMs: number | null }
 
-const cacheKey = (uid: string) => `tasks:${uid}`
+const cacheKey = (circleId: string) => `tasks:circle:${circleId}`
 
 const toCached = (doc: TaskDoc): CachedTaskDoc => {
   const { createdAt, ...rest } = doc
@@ -100,56 +76,49 @@ type CareTasksValue = {
 const CareTasksContext = createContext<CareTasksValue | undefined>(undefined)
 
 /**
- * Single source of the user's care tasks for every screen (Explore card + Cuidados), so switching
- * screens never refetches and a change made on one shows on the other at once.
+ * Single source of the circle's care tasks for every screen (Explore card + Cuidados), so switching
+ * screens never refetches and a change made on one shows on the other at once — and, being live,
+ * changes made by other circle members show up too.
  *
+ * - Reads circles/{circleId}/tasks only for an active member with `ver-rotina` (the rules deny it
+ *   otherwise) and only once the circle is ready (after the creator's legacy data moved in).
  * - Subscribes with `onSnapshot`: local writes show immediately (Firestore latency compensation)
  *   and are rolled back by the SDK if the server rejects them, so actions need no manual optimism.
  * - Shows the last list saved in AsyncStorage while the first snapshot is on its way.
- * - Seeds the initial tasks once when the server reports an empty collection.
  */
-export function CareTasksProvider({ uid, children }: { uid: string | undefined; children: ReactNode }) {
+export function CareTasksProvider({ children }: { children: ReactNode }) {
+  const { circle, membership, circleLoading } = useCircle()
+  const circleId =
+    !circleLoading && circle && hasPermission(membership, 'ver-rotina') ? circle.id : undefined
+
   const [docs, setDocs] = useState<TaskDoc[]>([])
-  const [tasksLoading, setTasksLoading] = useState(uid !== undefined)
+  const [tasksLoading, setTasksLoading] = useState(circleId !== undefined)
 
-  const seededRef = useRef(false)
-
-  // Reset during render whenever the uid changes (the React "adjust state when a prop changes"
-  // pattern), so a provider reused across accounts never shows the previous user's tasks.
-  const [loadedForUid, setLoadedForUid] = useState(uid)
-  if (loadedForUid !== uid) {
-    setLoadedForUid(uid)
+  // Reset during render whenever the circle changes (the React "adjust state when a prop changes"
+  // pattern), so the provider never shows another circle's (or account's) tasks.
+  const [loadedFor, setLoadedFor] = useState(circleId)
+  if (loadedFor !== circleId) {
+    setLoadedFor(circleId)
     setDocs([])
-    setTasksLoading(uid !== undefined)
+    setTasksLoading(circleId !== undefined)
   }
 
   useEffect(() => {
-    seededRef.current = false
-
-    if (!uid) return
+    if (!circleId) return
 
     let active = true
     let gotSnapshot = false
 
-    readCache<CachedTaskDoc[]>(cacheKey(uid)).then((cached) => {
+    readCache<CachedTaskDoc[]>(cacheKey(circleId)).then((cached) => {
       if (!active || gotSnapshot || !cached) return
       setDocs(cached.map(fromCached))
       setTasksLoading(false)
     })
 
     const unsubscribe = tasks.observeTasks(
-      uid,
+      circleId,
       (loaded, fromCache) => {
         if (!active) return
-        if (loaded.length === 0 && !fromCache && !seededRef.current) {
-          // The seed write fires the next snapshot with the seeded tasks.
-          seededRef.current = true
-          tasks.seedTasks(uid, SEED).catch((e) => {
-            console.warn('seedTasks failed', e)
-            if (active) setTasksLoading(false)
-          })
-          return
-        }
         if (loaded.length === 0 && fromCache) {
           // Offline with an empty in-memory cache: unknown, not "no tasks". Keep whatever the
           // AsyncStorage cache showed and just stop the spinner.
@@ -159,7 +128,7 @@ export function CareTasksProvider({ uid, children }: { uid: string | undefined; 
         gotSnapshot = true
         setDocs(loaded)
         setTasksLoading(false)
-        void writeCache(cacheKey(uid), loaded.map(toCached))
+        void writeCache(cacheKey(circleId), loaded.map(toCached))
       },
       (e) => {
         console.warn('observeTasks failed', e)
@@ -171,66 +140,66 @@ export function CareTasksProvider({ uid, children }: { uid: string | undefined; 
       active = false
       unsubscribe()
     }
-  }, [uid])
+  }, [circleId])
 
   const complete = useCallback(
     async (taskId: string): Promise<void> => {
-      if (!uid) return
+      if (!circleId) return
       try {
-        await tasks.completeTask(uid, taskId)
+        await tasks.completeTask(circleId, taskId)
       } catch (e) {
         console.warn('completeTask failed', e)
       }
     },
-    [uid]
+    [circleId]
   )
 
   const uncomplete = useCallback(
     async (taskId: string): Promise<void> => {
-      if (!uid) return
+      if (!circleId) return
       try {
-        await tasks.uncompleteTask(uid, taskId)
+        await tasks.uncompleteTask(circleId, taskId)
       } catch (e) {
         console.warn('uncompleteTask failed', e)
       }
     },
-    [uid]
+    [circleId]
   )
 
   const rescheduleTime = useCallback(
     async (taskId: string, time: string): Promise<void> => {
-      if (!uid) return
+      if (!circleId) return
       try {
-        await tasks.rescheduleTaskTime(uid, taskId, time)
+        await tasks.rescheduleTaskTime(circleId, taskId, time)
       } catch (e) {
         console.warn('rescheduleTaskTime failed', e)
       }
     },
-    [uid]
+    [circleId]
   )
 
   const assignTo = useCallback(
     async (taskId: string, assignee: string): Promise<void> => {
-      if (!uid) return
+      if (!circleId) return
       try {
-        await tasks.assignTask(uid, taskId, assignee)
+        await tasks.assignTask(circleId, taskId, assignee)
       } catch (e) {
         console.warn('assignTask failed', e)
       }
     },
-    [uid]
+    [circleId]
   )
 
   const create = useCallback(
     async (input: NewTaskInput, createdByName: string): Promise<void> => {
-      if (!uid) throw new Error('No signed-in user')
-      await tasks.createTask(uid, {
+      if (!circleId || !membership) throw new Error('No circle to create the task in')
+      await tasks.createTask(circleId, {
         ...input,
         icon: TASK_CATEGORIES[input.category].icon,
-        createdBy: { uid, name: createdByName },
+        createdBy: { uid: membership.uid, name: createdByName },
       })
     },
-    [uid]
+    [circleId, membership]
   )
 
   const value = useMemo<CareTasksValue>(
