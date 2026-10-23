@@ -50,6 +50,7 @@ function toInvitePreview(invite: InviteDoc): InvitePreview {
     canEdit: [has('editar-rotina') && 'a rotina', has('editar-saude') && 'a saúde'].filter(Boolean) as string[],
     canManage: has('gerenciar-membros'),
     expiresLabel: shortDay(invite.expiresAt.toDate()),
+    isTitular: invite.role === 'titular',
   }
 }
 
@@ -164,7 +165,12 @@ export default function Care() {
         canManage(membership)
           ? {
               inviterName: membership.name,
-              canInviteTitular: circle.subject.uid === null,
+              // One titular only: not once linked, nor while a titular invite or request is open.
+              canInviteTitular:
+                circle.subject.uid === null &&
+                !members.some((m) => m.role === 'titular') &&
+                !invites.some((i) => i.role === 'titular'),
+              titularLinked: circle.subject.uid !== null,
               grantable: membership.permissions,
               pendingMembers: members.filter((m) => m.status === 'pendente').map((m) => toFamilyMember(m, membership)),
               invites: invites.map((i) => ({

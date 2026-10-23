@@ -16,6 +16,8 @@ import {
 export type FamilyManagement = {
   inviterName: string
   canInviteTitular: boolean
+  /** The assisted person's account is already linked (a second titular can't be approved). */
+  titularLinked: boolean
   grantable: PermissionKey[]
   pendingMembers: FamilyMember[]
   invites: InviteSummary[]
@@ -266,16 +268,25 @@ export function FamilyView({
             <View key={member.id} className="rounded-3xl border bg-white p-5 mb-3" style={{ borderColor: '#DD7C54' }}>
               <Text className="font-hanken-extrabold text-navy text-[17px]">{member.name}</Text>
               <Text className="font-hanken text-muted text-[15px] mb-4">{member.role}</Text>
+              {member.circleRole === 'titular' ? (
+                <Text className="font-hanken text-ink text-[15px] leading-[22px] mb-4">
+                  {management.titularLinked
+                    ? 'A pessoa assistida já tem uma conta vinculada. Recuse este pedido.'
+                    : 'Ao aprovar, esta conta passa a ser a pessoa assistida: terá acesso a tudo e não poderá ser removida do círculo.'}
+                </Text>
+              ) : null}
               <View className="flex-row gap-2">
-                <View className="flex-1">
-                  <SmallAction
-                    label="Aprovar"
-                    accessibilityLabel={`Aprovar a entrada de ${member.name}`}
-                    tone="primary"
-                    busy={busy === `approve:${member.id}`}
-                    onPress={() => run(`approve:${member.id}`, () => management.onApprove(member.id))}
-                  />
-                </View>
+                {member.circleRole === 'titular' && management.titularLinked ? null : (
+                  <View className="flex-1">
+                    <SmallAction
+                      label="Aprovar"
+                      accessibilityLabel={`Aprovar a entrada de ${member.name}`}
+                      tone="primary"
+                      busy={busy === `approve:${member.id}`}
+                      onPress={() => run(`approve:${member.id}`, () => management.onApprove(member.id))}
+                    />
+                  </View>
+                )}
                 <View className="flex-1">
                   <SmallAction
                     label="Recusar"

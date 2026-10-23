@@ -261,9 +261,12 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const approveMember = useCallback(
     async (memberUid: string): Promise<void> => {
       if (!circleId) throw circleError('circle/not-allowed')
-      await circles.approveMember(circleId, findMember(memberUid))
+      const target = findMember(memberUid)
+      // One titular per circle: the rules would refuse a second link anyway.
+      if (target.role === 'titular' && circle?.subject.uid) throw circleError('circle/titular-exists')
+      await circles.approveMember(circleId, target)
     },
-    [circleId, findMember]
+    [circleId, circle, findMember]
   )
 
   const removeMember = useCallback(

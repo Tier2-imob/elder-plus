@@ -35,11 +35,18 @@ export type InvitePreview = {
   canEdit: string[]
   canManage: boolean
   expiresLabel: string
+  /** Invite to link the assisted person's own account (they become the circle's titular). */
+  isTitular: boolean
 }
 
 const JOIN_CONSENT = (circleName: string) =>
   `Concordo em acessar os dados de rotina e de saúde de ${circleName} apenas para ajudar no cuidado, ` +
   'conforme as permissões concedidas, e entendo que meu acesso pode ser revogado a qualquer momento.'
+
+// The titular is the data subject (LGPD art. 11): they authorize the use of their own data.
+const TITULAR_CONSENT = (circleName: string) =>
+  `Confirmo que sou ${circleName}, a pessoa assistida deste círculo, e autorizo que meus dados de rotina e ` +
+  'de saúde sejam registrados no Elder+ e compartilhados com as pessoas do círculo, conforme as permissões definidas.'
 
 const CONSENT_TEXT = {
   elder:
@@ -222,14 +229,17 @@ function JoinForm({
     )
   }
 
-  const consent = JOIN_CONSENT(preview.circleName)
+  const consent = preview.isTitular ? TITULAR_CONSENT(preview.circleName) : JOIN_CONSENT(preview.circleName)
   return (
     <View>
       <Text accessibilityRole="header" className="font-hanken-extrabold text-navy text-[28px] leading-[34px] mb-3">
         Círculo de {preview.circleName}
       </Text>
       <Text className="font-hanken text-muted text-[17px] leading-6 mb-5">
-        {preview.invitedByName} convidou você como {preview.roleLabel}.
+        {preview.isTitular
+          ? `${preview.invitedByName} convidou você para vincular sua conta como a pessoa assistida deste círculo. ` +
+            'Você terá acesso a tudo e poderá convidar e aprovar pessoas.'
+          : `${preview.invitedByName} convidou você como ${preview.roleLabel}.`}
       </Text>
 
       <View className="rounded-3xl border border-hairline bg-white p-5">
