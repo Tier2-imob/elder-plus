@@ -71,6 +71,8 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
  * Only server-confirmed values are emitted: Firestore shows a local write at once and reverts it
  * if the server rejects the batch, which made the UI jump into the circle and back. Skipping
  * snapshots with pending writes keeps the screen put until the server answers.
+ * `includeMetadataChanges` is required for that: the server ack only flips hasPendingWrites
+ * (the data is unchanged), and without it no snapshot would follow — the screen would wait forever.
  */
 export function observeCircleId(
   uid: string,
@@ -79,6 +81,7 @@ export function observeCircleId(
 ): Unsubscribe {
   return onSnapshot(
     doc(db, 'users', uid),
+    { includeMetadataChanges: true },
     (snap) => {
       if (snap.metadata.hasPendingWrites) return
       const value = snap.data()?.circleId
