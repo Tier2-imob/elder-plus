@@ -43,13 +43,54 @@ export type Task = {
   category?: TaskCategory
   assignee?: string
   status?: TaskStatus
+  description?: string
+  /** Creation moment; undefined/null on the initial seeded tasks. */
+  createdAt?: Date | null
+  /** Name of who created the task; undefined on the initial seeded tasks. */
+  createdBy?: string
 }
+
+/** Fields the user fills in the "Nova tarefa" form. */
+export type NewTaskInput = {
+  title: string
+  description?: string
+  category: TaskCategory
+  dayKey: string
+  day: string
+  time: string
+  assignee?: string
+}
+
+/** Time slots offered when creating or postponing a task. */
+export const TASK_TIMES = [
+  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00',
+  '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00',
+]
+
+/** Fixed homologation week (TODO: follow the real calendar). */
+export const WEEK_DAYS = [
+  { key: 'mon', short: 'Seg', date: '12', full: 'Segunda-feira' },
+  { key: 'tue', short: 'Ter', date: '13', full: 'Terça-feira' },
+  { key: 'wed', short: 'Qua', date: '14', full: 'Quarta-feira' },
+  { key: 'thu', short: 'Qui', date: '15', full: 'Quinta-feira' },
+  { key: 'fri', short: 'Sex', date: '16', full: 'Sexta-feira' },
+  { key: 'sat', short: 'Sáb', date: '17', full: 'Sábado' },
+  { key: 'sun', short: 'Dom', date: '18', full: 'Domingo' },
+]
+
+export const TODAY_KEY = 'wed'
 
 // ─── Saúde ─────────────────────────────────────────────────────────────────────
 
 export type MedicationDoseState = 'tomou' | 'nao-tomou' | 'atrasou'
 
-export type MedicationDose = { date: string; state: MedicationDoseState }
+export type MedicationDose = {
+  /** Local calendar day, "YYYY-MM-DD". */
+  date: string
+  /** Scheduled slot, "HH:MM". */
+  time: string
+  state: MedicationDoseState
+}
 
 export type Medication = {
   id: string
@@ -57,11 +98,34 @@ export type Medication = {
   principle: string
   dose: string
   via: string
+  /** Daily dose times in "HH:MM", ascending. */
   times: string[]
   stock: number
   stockUnit: string
+  /** Doses registered today, one per slot at most. */
+  today: MedicationDose[]
+  /** Doses registered before today (last 7 days), newest first. */
   history: MedicationDose[]
 }
+
+/** Fields the user fills in the medication form (create and edit). */
+export type MedicationInput = {
+  name: string
+  principle: string
+  dose: string
+  via: string
+  times: string[]
+  stock: number
+  stockUnit: string
+}
+
+/** Stock at or below this many units is flagged as low. */
+export const LOW_STOCK_THRESHOLD = 5
+
+/** "Tomei" registered more than this many minutes after the slot counts as late ("atrasou"). */
+export const LATE_TOLERANCE_MIN = 60
+
+export const MEDICATION_VIAS = ['oral', 'sublingual', 'injetável', 'inalatória', 'tópica', 'colírio']
 
 export type HealthReminder = {
   id: string

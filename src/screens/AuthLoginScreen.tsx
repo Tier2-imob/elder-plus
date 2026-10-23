@@ -62,6 +62,8 @@ export function AuthLoginScreen({
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
+          autoComplete="email"
+          textContentType="username"
           autoFocus
           returnKeyType="next"
           onSubmitEditing={() => passwordRef.current?.focus()}
@@ -77,6 +79,8 @@ export function AuthLoginScreen({
           placeholderTextColor="#6B7A85"
           secureTextEntry
           autoCapitalize="none"
+          autoComplete="current-password"
+          textContentType="password"
           returnKeyType="done"
           onSubmitEditing={handleSubmit}
           className="min-h-[56px] rounded-2xl border-[1.6px] border-hairline bg-white px-4 font-hanken-medium text-[15.5px] text-ink"

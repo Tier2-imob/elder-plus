@@ -1,7 +1,8 @@
 import { FloatingNav } from '@/components/FloatingNav'
 import { Logo } from '@/components/Logo'
+import { TaskCard } from '@/components/care/TaskCard'
+import type { FamilyMember, Task } from '@/components/care/types'
 import { CATEGORY_DATA } from '@/data/discover-data'
-import { useNearestTask } from '@/hooks/useNearestTask'
 import type { ServiceItem } from '@/screens/DiscoverScreen'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useMemo, useState } from 'react'
@@ -43,7 +44,14 @@ function distanceLabel(distance: number) {
 
 export function ExploreScreen({
   name,
-  uid,
+  showNextTask = false,
+  nearestTask = null,
+  nearestTaskDone = false,
+  taskLoading = false,
+  familyMembers = [],
+  onToggleTaskDone,
+  onRescheduleTask,
+  onAssignTask,
   topInset = 0,
   bottomInset = 0,
   onSelectCategory,
@@ -53,7 +61,14 @@ export function ExploreScreen({
   onOpenDocuments,
 }: {
   name?: string
-  uid?: string
+  showNextTask?: boolean
+  nearestTask?: Task | null
+  nearestTaskDone?: boolean
+  taskLoading?: boolean
+  familyMembers?: FamilyMember[]
+  onToggleTaskDone?: (taskId: string) => void
+  onRescheduleTask?: (taskId: string, time: string) => void
+  onAssignTask?: (taskId: string, assignee: string) => void
   topInset?: number
   bottomInset?: number
   onSelectCategory: (category: Category) => void
@@ -68,8 +83,6 @@ export function ExploreScreen({
   // Filtros da busca (dentro do card expandido): categoria (null = "Todos") e ordenar por distância.
   const [filterCategory, setFilterCategory] = useState<string | null>(null)
   const [sortByDistance, setSortByDistance] = useState(false)
-
-  const { task: nearestTask, loading: taskLoading } = useNearestTask(uid)
 
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase()
@@ -212,8 +225,9 @@ export function ExploreScreen({
         </View>
 
         {/* Próxima tarefa — só quando há usuário logado */}
-        {uid ? (
-          <View className="mb-7">
+        {showNextTask ? (
+          // TaskCard carries its own mb-4, so the section trims its margin to keep the same 28px gap.
+          <View className={!taskLoading && nearestTask ? 'mb-3' : 'mb-7'}>
             <Text className="font-hanken-bold text-navy text-3xl mb-2">Próxima tarefa</Text>
             {taskLoading ? (
               <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
@@ -225,29 +239,15 @@ export function ExploreScreen({
                 </View>
               </View>
             ) : nearestTask ? (
-              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
-                <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
-                  <MaterialIcons name={nearestTask.icon} size={22} color="#11375C" />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-hanken-bold text-navy text-[15px] mb-0.5">{nearestTask.title}</Text>
-                  <Text className="font-hanken text-muted text-[12.5px]">{nearestTask.time}</Text>
-                  <View className="flex-row flex-wrap items-center gap-2 mt-2">
-                    {nearestTask.day ? (
-                      <View className="flex-row items-center gap-1 rounded-full border border-hairline bg-navy/5 px-2.5 py-1">
-                        <MaterialIcons name="event" size={11} color="#11375C" />
-                        <Text className="font-hanken-medium text-navy text-[11px]">{nearestTask.day}</Text>
-                      </View>
-                    ) : null}
-                    {nearestTask.assignee ? (
-                      <View className="flex-row items-center gap-1 rounded-full bg-terracotta/10 px-2.5 py-1">
-                        <MaterialIcons name="person" size={11} color="#DD7C54" />
-                        <Text className="font-hanken-medium text-terracotta text-[11px]">{nearestTask.assignee}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-              </View>
+              // Mesmo card da tela Cuidados (formato e ações: concluir, adiar, atribuir).
+              <TaskCard
+                task={nearestTask}
+                done={nearestTaskDone}
+                members={familyMembers}
+                onToggleDone={() => onToggleTaskDone?.(nearestTask.id)}
+                onReschedule={(time) => onRescheduleTask?.(nearestTask.id, time)}
+                onAssign={(assignee) => onAssignTask?.(nearestTask.id, assignee)}
+              />
             ) : (
               <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
                 <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
@@ -263,14 +263,16 @@ export function ExploreScreen({
 
         {/* Categorias */}
         <Text className="font-hanken-bold text-navy text-3xl mb-3">Explore por categoria</Text>
-        <View className="flex-row flex-wrap gap-3 mb-7">
+        {/* justify-between: 2 × 47% + gap never summed to 100%, leaving the right column short of the
+            edge every other section aligns to. */}
+        <View className="flex-row flex-wrap justify-between gap-y-3 mb-7">
           {CATEGORIES.map((category) => (
             <Pressable
               key={category.id}
               accessibilityRole="button"
               accessibilityLabel={category.label}
               onPress={() => onSelectCategory(category)}
-              className="w-[47%] items-center rounded-2xl border border-hairline bg-white px-3 py-5 active:opacity-70"
+              className="w-[48%] items-center rounded-2xl border border-hairline bg-white px-3 py-5 active:opacity-70"
             >
               <View className="w-12 h-12 rounded-2xl items-center justify-center bg-navy/10 mb-2.5">
                 <MaterialIcons name={category.icon} size={22} color="#11375C" />

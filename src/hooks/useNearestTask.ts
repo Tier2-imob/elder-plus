@@ -1,19 +1,7 @@
-import type MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
-import * as tasks from '@/services/firebase/tasks'
-import type { TaskDoc } from '@/services/firebase/types'
-
-/** The shape ExploreScreen consumes for the "Próxima tarefa" card. */
-export type NearestTask = {
-  id: string
-  title: string
-  time: string
-  icon: keyof typeof MaterialIcons.glyphMap
-  day: string
-  dayKey: string
-  assignee?: string
-}
+import type { Task } from '@/components/care/types'
+import { useCareTasks } from '@/state/care-tasks-context'
 
 /**
  * Parse a task `time` string into minutes-of-day. Two real formats exist in the codebase:
@@ -46,14 +34,14 @@ function parseTimeToMinutes(time: string): number {
 /**
  * Pick the "nearest pending task".
  *
- * Rule (documented): among tasks with `done === false`, choose the earliest by minutes-of-day that
- * falls AT OR AFTER the current minute-of-day ("now"); if none remain later today, fall back to the
+ * Rule (documented): among tasks not in `doneIds`, choose the earliest by minutes-of-day that falls
+ * AT OR AFTER the current minute-of-day ("now"); if none remain later today, fall back to the
  * earliest pending task overall (so the card is never empty while pending tasks exist). Ties break
- * by ascending `order`. `listTasks` already returns docs ordered by `order asc`, so a stable sort on
+ * by ascending `order`. `observeTasks` already returns docs ordered by `order asc`, so a stable sort on
  * minutes preserves `order` as the natural tiebreaker.
  */
-function pickNearestPending(docs: TaskDoc[]): TaskDoc | null {
-  const pending = docs.filter((d) => !d.done)
+function pickNearestPending(tasks: Task[], doneIds: Set<string>): Task | null {
+  const pending = tasks.filter((t) => !doneIds.has(t.id))
   if (pending.length === 0) return null
 
   const now = new Date()
@@ -63,70 +51,43 @@ function pickNearestPending(docs: TaskDoc[]): TaskDoc | null {
     (a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time)
   )
 
-  const upcoming = byTime.find((d) => parseTimeToMinutes(d.time) >= nowMinutes)
+  const upcoming = byTime.find((t) => parseTimeToMinutes(t.time) >= nowMinutes)
   return upcoming ?? byTime[0]
 }
 
 /**
- * Reads the signed-in user's tasks from Firestore (via `listTasks`) and exposes the nearest pending
- * task for the ExploreScreen card. Mirrors `useCareTasks`' uid-guard + render-time reset-on-uid-change
- * pattern. This hook only READS — it does NOT seed (seeding is `useCareTasks`' responsibility;
- * duplicating it here would risk races). Firestore access stays in the service layer.
+ * Exposes the nearest pending task for the ExploreScreen "Próxima tarefa" card, plus the same
+ * actions the CareScreen TaskCard offers (concluir / adiar / atribuir). Reads the shared task list
+ * from CareTasksProvider, so it is the same live data Cuidados shows. `uid` only keys the pin.
  */
 export function useNearestTask(uid: string | undefined) {
-  const [task, setTask] = useState<NearestTask | null>(null)
-  const [loading, setLoading] = useState(uid !== undefined)
+  const { tasks, doneIds, tasksLoading, complete, uncomplete, rescheduleTime, assignTo } =
+    useCareTasks()
 
-  // Reset to the loading state during render whenever the uid changes (the React-recommended
-  // "adjust state when a prop changes" pattern), so a wrapper reused across accounts never shows
-  // the previous user's task.
-  const [loadedForUid, setLoadedForUid] = useState(uid)
-  if (loadedForUid !== uid) {
-    setLoadedForUid(uid)
-    setTask(null)
-    setLoading(uid !== undefined)
+  // Once the user acts on the card, keep showing that task (done or rescheduled) instead of jumping
+  // to the next one, so "Concluída" can still be undone. Keyed by uid so it never leaks across accounts.
+  const [pinned, setPinned] = useState<{ uid: string | undefined; id: string } | null>(null)
+  const pinnedTask = pinned && pinned.uid === uid ? tasks.find((t) => t.id === pinned.id) : undefined
+  const task = pinnedTask ?? pickNearestPending(tasks, doneIds)
+
+  const pin = (id: string) => setPinned({ uid, id })
+
+  return {
+    task,
+    done: task ? doneIds.has(task.id) : false,
+    loading: tasksLoading,
+    toggleDone: (id: string) => {
+      pin(id)
+      if (doneIds.has(id)) uncomplete(id)
+      else complete(id)
+    },
+    reschedule: (id: string, time: string) => {
+      pin(id)
+      rescheduleTime(id, time)
+    },
+    assign: (id: string, assignee: string) => {
+      pin(id)
+      assignTo(id, assignee)
+    },
   }
-
-  // Tracks the current effect run so a resolved request for a stale uid never writes state.
-  const activeRef = useRef(true)
-
-  useEffect(() => {
-    activeRef.current = true
-
-    if (uid) {
-      tasks
-        .listTasks(uid)
-        .then((docs) => {
-          if (!activeRef.current) return
-          const nearest = pickNearestPending(docs)
-          // The icon cast is sound because tasks are seeded with real MaterialIcons glyph strings.
-          setTask(
-            nearest
-              ? {
-                  id: nearest.id,
-                  title: nearest.title,
-                  time: nearest.time,
-                  icon: nearest.icon as keyof typeof MaterialIcons.glyphMap,
-                  day: nearest.day,
-                  dayKey: nearest.dayKey,
-                  assignee: nearest.assignee,
-                }
-              : null
-          )
-        })
-        .catch((e) => {
-          console.warn('listTasks failed', e)
-          if (activeRef.current) setTask(null)
-        })
-        .finally(() => {
-          if (activeRef.current) setLoading(false)
-        })
-    }
-
-    return () => {
-      activeRef.current = false
-    }
-  }, [uid])
-
-  return { task, loading }
 }

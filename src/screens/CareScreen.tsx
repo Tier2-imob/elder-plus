@@ -2,12 +2,16 @@ import { FloatingNav } from '@/components/FloatingNav'
 import { Logo } from '@/components/Logo'
 import { FamilyView } from '@/components/care/FamilyView'
 import { HealthView } from '@/components/care/HealthView'
+import { MedicationModal } from '@/components/care/MedicationModal'
+import { NewTaskModal } from '@/components/care/NewTaskModal'
 import { RoutineView } from '@/components/care/RoutineView'
 import type {
   FamilyMember,
   HealthReminder,
   HealthStats,
   Medication,
+  MedicationInput,
+  NewTaskInput,
   Task,
 } from '@/components/care/types'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
@@ -36,12 +40,21 @@ export function CareScreen({
   doneIds,
   tasksLoading = false,
   medications,
+  medsAdherence,
+  medicationsLoading = false,
+  medicationsError,
   healthReminders,
   healthStats,
   familyMembers,
   onToggleDone,
   onReschedule,
   onAssign,
+  onCreateTask,
+  onRecordDose,
+  onUndoDose,
+  onCreateMedication,
+  onUpdateMedication,
+  onDeleteMedication,
   topInset = 0,
   bottomInset = 0,
 }: {
@@ -50,17 +63,31 @@ export function CareScreen({
   doneIds: Set<string>
   tasksLoading?: boolean
   medications: Medication[]
+  medsAdherence: number | null
+  medicationsLoading?: boolean
+  medicationsError?: string
   healthReminders: HealthReminder[]
   healthStats: HealthStats
   familyMembers: FamilyMember[]
   onToggleDone: (taskId: string, isDone: boolean) => void
   onReschedule: (taskId: string, time: string) => void
   onAssign: (taskId: string, assignee: string) => void
+  /** Persists a new task; rejects on failure so the form can show the error. */
+  onCreateTask: (input: NewTaskInput) => Promise<void>
+  onRecordDose: (medicationId: string, time: string, taken: boolean) => void
+  onUndoDose: (medicationId: string, time: string) => void
+  /** Create/update/delete reject on failure so the medication form can show the error. */
+  onCreateMedication: (input: MedicationInput) => Promise<void>
+  onUpdateMedication: (medicationId: string, input: MedicationInput) => Promise<void>
+  onDeleteMedication: (medicationId: string) => Promise<void>
   topInset?: number
   bottomInset?: number
 }) {
   const [tab, setTab] = useState<CareTab>('rotina')
   const [routineMode, setRoutineMode] = useState<RoutineMode>('today')
+  const [newTaskOpen, setNewTaskOpen] = useState(false)
+  // 'new' = create form; a Medication = edit form for it; null = closed.
+  const [medicationForm, setMedicationForm] = useState<Medication | 'new' | null>(null)
 
   return (
     <View className="flex-1 bg-offwhite">
@@ -147,28 +174,66 @@ export function CareScreen({
               Carregando tarefas…
             </Text>
           ) : (
-            <RoutineView
-              mode={routineMode}
-              tasks={tasks}
-              doneIds={doneIds}
-              members={familyMembers}
-              onToggleDone={(id) => onToggleDone(id, doneIds.has(id))}
-              onReschedule={onReschedule}
-              onAssign={onAssign}
-            />
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Nova tarefa"
+                onPress={() => setNewTaskOpen(true)}
+                className="min-h-[52px] rounded-2xl flex-row items-center justify-center gap-2 bg-navy mb-4 active:opacity-90"
+              >
+                <MaterialIcons name="add" size={20} color="#FFFFFF" />
+                <Text className="font-hanken-bold text-base text-white">Nova tarefa</Text>
+              </Pressable>
+              <RoutineView
+                mode={routineMode}
+                tasks={tasks}
+                doneIds={doneIds}
+                members={familyMembers}
+                onToggleDone={(id) => onToggleDone(id, doneIds.has(id))}
+                onReschedule={onReschedule}
+                onAssign={onAssign}
+              />
+            </>
           )
         ) : tab === 'saude' ? (
           <HealthView
             medications={medications}
+            medsAdherence={medsAdherence}
+            medicationsLoading={medicationsLoading}
+            medicationsError={medicationsError}
             reminders={healthReminders}
             stats={healthStats}
             tasksDone={doneIds.size}
             tasksTotal={tasks.length}
+            onRecordDose={onRecordDose}
+            onUndoDose={onUndoDose}
+            onAddMedication={() => setMedicationForm('new')}
+            onEditMedication={setMedicationForm}
           />
         ) : (
           <FamilyView members={familyMembers} />
         )}
       </ScrollView>
+
+      {/* Rendered only while open so each opening starts with a clean form. */}
+      {newTaskOpen ? (
+        <NewTaskModal
+          members={familyMembers}
+          onClose={() => setNewTaskOpen(false)}
+          onSubmit={onCreateTask}
+        />
+      ) : null}
+
+      {medicationForm === 'new' ? (
+        <MedicationModal onClose={() => setMedicationForm(null)} onSubmit={onCreateMedication} />
+      ) : medicationForm ? (
+        <MedicationModal
+          medication={medicationForm}
+          onClose={() => setMedicationForm(null)}
+          onSubmit={(input) => onUpdateMedication(medicationForm.id, input)}
+          onDelete={() => onDeleteMedication(medicationForm.id)}
+        />
+      ) : null}
 
       <FloatingNav active="care" onPress={onNavigate} bottomInset={bottomInset} />
     </View>

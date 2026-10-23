@@ -41,10 +41,9 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="signup" />
-      <Stack.Screen name="explore" />
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen name="discover" />
       <Stack.Screen name="business" />
-      <Stack.Screen name="care" />
       <Stack.Screen name="documents" />
     </Stack>
   )

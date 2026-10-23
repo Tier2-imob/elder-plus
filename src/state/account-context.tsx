@@ -21,8 +21,12 @@ import * as auth from '@/services/firebase/auth';
 import * as favorites from '@/services/firebase/favorites';
 import type { UserProfile } from '@/services/firebase/types';
 import * as users from '@/services/firebase/users';
+import { clearCache, readCache, writeCache } from '@/services/local-cache';
 
 type Account = { name: string; role: AccountRole; uid: string } | null
+
+/** Last resolved account, so a returning user enters the app without waiting for Firestore. */
+const ACCOUNT_CACHE_KEY = 'account'
 
 type AccountContextValue = {
     account: Account
@@ -75,13 +79,16 @@ export function AccountProvider({ children }: { children: ReactNode }){
     // account state (the same `account` RootNavigator reacts to). Used by both the auth-state
     // listener and the explicit post-signup resolution so navigation never depends solely on a
     // listener callback that may have already fired too early.
+    // Returns the account, null when the profile does not exist, or undefined when it could not be
+    // read (network) — the listener keeps a cached account in that last case instead of signing out.
     const resolveAccount = useCallback(
-        async (user: AuthUser): Promise<Account> => {
-            let profile: UserProfile | null = null
+        async (user: AuthUser): Promise<Account | undefined> => {
+            let profile: UserProfile | null
             try {
                 profile = await users.getProfile(user.uid)
             } catch (e) {
                 console.warn('profile load failed', e)
+                return undefined
             }
 
             if (!profile) {
@@ -90,7 +97,9 @@ export function AccountProvider({ children }: { children: ReactNode }){
 
             const next: Account = { name: profile.name, role: profile.role, uid: user.uid }
             setAccount(next)
-            await loadFavorites(user.uid)
+            void writeCache(ACCOUNT_CACHE_KEY, next)
+            // Favorites are not needed to show the first screen: load them without blocking.
+            void loadFavorites(user.uid)
             return next
         },
         [loadFavorites]
@@ -102,11 +111,23 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 if (!user) {
                     setAccount(null)
                     setFavoriteIds(new Set())
+                    void clearCache(ACCOUNT_CACHE_KEY)
                     return
+                }
+
+                // Returning user: enter the app right away with the cached account, then refresh
+                // the profile from Firestore in the background.
+                const cached = await readCache<NonNullable<Account>>(ACCOUNT_CACHE_KEY)
+                const hasCached = cached?.uid === user.uid
+                if (hasCached) {
+                    setAccount(cached)
+                    setLoading(false)
                 }
 
                 const resolved = await resolveAccount(user)
                 if (resolved) return
+                // Profile unreadable (offline, timeout) but known from cache: stay signed in.
+                if (resolved === undefined && hasCached) return
 
                 // Profile not found. If this uid is being provisioned by an in-flight explicit
                 // signUp/signInWithGoogle, this is the known listener-timing race: the profile
@@ -119,6 +140,7 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 // signed-out at the app layer + surface a one-time error.
                 setAccount(null)
                 setFavoriteIds(new Set())
+                void clearCache(ACCOUNT_CACHE_KEY)
                 setProfileError('Não foi possível carregar seu perfil. Entre novamente.')
             } finally {
                 setLoading(false)

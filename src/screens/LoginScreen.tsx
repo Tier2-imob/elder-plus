@@ -88,8 +88,10 @@ export function LoginScreen({
 
                 <View className='mt-auto items-center pt-6'>
                     <Text className='font-hanken text-muted text-xs mb-2.5'>ou</Text>
-                    <Pressable accessibilityRole='button' onPress={onLogin}>
-                        <Text className='font-hanken-extrabold text-terracotta text-2xl'>Já tenho conta — Entrar</Text>
+                    {/* Full-width + simple break strategy: Android underestimates the width of the custom
+                        extrabold font, wraps "Entrar" to a second line and clips it to one line's height. */}
+                    <Pressable accessibilityRole='button' onPress={onLogin} className='self-stretch'>
+                        <Text textBreakStrategy='simple' className='font-hanken-extrabold text-terracotta text-lg text-center'>Já tenho conta — Entrar</Text>
                     </Pressable>
                 </View>
             </View>

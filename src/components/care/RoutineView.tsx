@@ -2,19 +2,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { Text, View } from 'react-native'
 
 import { TaskCard } from './TaskCard'
-import type { FamilyMember, Task } from './types'
+import { TODAY_KEY, WEEK_DAYS, type FamilyMember, type Task } from './types'
 
-const WEEK_DAYS = [
-  { key: 'mon', short: 'Seg', date: '12', full: 'Segunda-feira' },
-  { key: 'tue', short: 'Ter', date: '13', full: 'Terça-feira' },
-  { key: 'wed', short: 'Qua', date: '14', full: 'Quarta-feira' },
-  { key: 'thu', short: 'Qui', date: '15', full: 'Quinta-feira' },
-  { key: 'fri', short: 'Sex', date: '16', full: 'Sexta-feira' },
-  { key: 'sat', short: 'Sáb', date: '17', full: 'Sábado' },
-  { key: 'sun', short: 'Dom', date: '18', full: 'Domingo' },
-]
-
-export const TODAY_KEY = 'wed'
+// Tasks of a day in time order. Times are zero-padded "HH:MM", so string order is time order.
+function byDay(tasks: Task[], dayKey: string) {
+  return tasks.filter((t) => t.dayKey === dayKey).sort((a, b) => a.time.localeCompare(b.time))
+}
 
 type ToggleProps = {
   tasks: Task[]
@@ -55,7 +48,7 @@ export function RoutineView({
   })
 
   if (mode === 'today') {
-    const todayTasks = tasks.filter((t) => t.dayKey === TODAY_KEY)
+    const todayTasks = byDay(tasks, TODAY_KEY)
     if (todayTasks.length === 0) return <EmptyDay label="Nenhuma tarefa para hoje" />
     return (
       <View>
@@ -69,7 +62,7 @@ export function RoutineView({
   return (
     <View>
       {WEEK_DAYS.map((day) => {
-        const dayTasks = tasks.filter((t) => t.dayKey === day.key)
+        const dayTasks = byDay(tasks, day.key)
         const isToday = day.key === TODAY_KEY
 
         return (

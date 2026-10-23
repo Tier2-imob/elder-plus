@@ -6,6 +6,7 @@ const MESSAGES: Record<string, string> = {
   'auth/user-not-found': 'Não encontramos uma conta com esse e-mail.',
   'auth/wrong-password': 'E-mail ou senha incorretos. Verifique e tente novamente.',
   'auth/too-many-requests': 'Muitas tentativas. Aguarde um momento e tente novamente.',
+  'auth/network-request-failed': 'Sem conexão com a internet. Verifique e tente novamente.',
   'app/too-many-attempts': 'Muitas tentativas. Tente novamente em alguns instantes.',
   'app/partner-not-available': 'O Portal do Parceiro ainda não está disponível. Em breve!',
   'app/terms-not-accepted':
