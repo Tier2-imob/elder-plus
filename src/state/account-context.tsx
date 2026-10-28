@@ -8,6 +8,7 @@ import {
     useState,
     type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 
 import type { AccountRole } from '@/components/types';
 import { TERMS_VERSION } from '@/constants/constants';
@@ -28,6 +29,9 @@ type Account = { name: string; role: AccountRole; uid: string } | null
 /** Last resolved account, so a returning user enters the app without waiting for Firestore. */
 const ACCOUNT_CACHE_KEY = 'account'
 
+/** Minimum time between two server checks of the session (see checkSession). */
+const SESSION_CHECK_INTERVAL_MS = 60_000
+
 type AccountContextValue = {
     account: Account
     loading: boolean
@@ -37,6 +41,11 @@ type AccountContextValue = {
         input: { mode: 'signup'; name?: string; role: AccountRole } | { mode: 'signin' }
     ) => Promise<void>
     signOut: () => Promise<void>
+    /** Send the password-reset e-mail (same outcome whether or not the e-mail has an account). */
+    requestPasswordReset: (email: string) => Promise<void>
+    /** Why the user was signed out without asking (e.g. the password was changed), if so. */
+    sessionNotice: string | undefined
+    clearSessionNotice: () => void
     favorites: Set<string>
     toggleFavorite: (id: string) => void
     isFavorite: (id: string) => boolean
@@ -47,6 +56,8 @@ const AccountContext = createContext<AccountContextValue | undefined>(undefined)
 export function AccountProvider({ children }: { children: ReactNode }){
     const [account, setAccount] = useState<Account>(null)
     const [loading, setLoading] = useState(true)
+    // Why the user was signed out without asking (shown on the sign-in screens until the next sign-in).
+    const [sessionNotice, setSessionNotice] = useState<string | undefined>(undefined)
     const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
     const [, setProfileError] = useState<string | undefined>(undefined)
 
@@ -97,6 +108,7 @@ export function AccountProvider({ children }: { children: ReactNode }){
 
             const next: Account = { name: profile.name, role: profile.role, uid: user.uid }
             setAccount(next)
+            setSessionNotice(undefined)
             void writeCache(ACCOUNT_CACHE_KEY, next)
             // Favorites are not needed to show the first screen: load them without blocking.
             void loadFavorites(user.uid)
@@ -232,6 +244,38 @@ export function AccountProvider({ children }: { children: ReactNode }){
         await auth.logout()
     }, [])
 
+    const requestPasswordReset = useCallback(async (email: string) => {
+        await auth.requestPasswordReset(email.trim())
+    }, [])
+
+    // Sessions end when the password changes: a reset revokes every refresh token of the account.
+    // Confirm the session with the server on start and each time the app comes back to the
+    // foreground (at most once a minute), instead of waiting up to an hour for the ID token to expire.
+    const clearSessionNotice = useCallback(() => setSessionNotice(undefined), [])
+    const lastSessionCheckRef = useRef(0)
+    useEffect(() => {
+        if (!account) return
+        let active = true
+        const check = () => {
+            const now = Date.now()
+            if (now - lastSessionCheckRef.current < SESSION_CHECK_INTERVAL_MS) return
+            lastSessionCheckRef.current = now
+            auth.verifySession().then((result) => {
+                if (!active || result !== 'revoked') return
+                setSessionNotice('Sua senha foi alterada ou sua sessão expirou. Entre novamente para continuar.')
+                auth.logout().catch((e) => console.warn('logout after revoked session failed', e))
+            })
+        }
+        check()
+        const subscription = AppState.addEventListener('change', (state) => {
+            if (state === 'active') check()
+        })
+        return () => {
+            active = false
+            subscription.remove()
+        }
+    }, [account])
+
     const toggleFavorite = useCallback((id: string) => {
         if (!account) return
         const wasFavorite = favoritesRef.current.has(id)
@@ -265,11 +309,27 @@ export function AccountProvider({ children }: { children: ReactNode }){
             signIn,
             signInWithGoogle,
             signOut,
+            requestPasswordReset,
+            sessionNotice,
+            clearSessionNotice,
             favorites: favoriteIds,
             toggleFavorite,
             isFavorite,
         }),
-        [account, loading, signUp, signIn, signInWithGoogle, signOut, favoriteIds, toggleFavorite, isFavorite]
+        [
+            account,
+            loading,
+            signUp,
+            signIn,
+            signInWithGoogle,
+            signOut,
+            requestPasswordReset,
+            sessionNotice,
+            clearSessionNotice,
+            favoriteIds,
+            toggleFavorite,
+            isFavorite,
+        ]
     )
 
     return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>

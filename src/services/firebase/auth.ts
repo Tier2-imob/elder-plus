@@ -10,6 +10,7 @@ import {
     deleteUser,
     signOut as firebaseSignOut,
     onAuthStateChanged,
+    sendPasswordResetEmail,
     signInWithCredential,
     signInWithEmailAndPassword,
     type User,
@@ -184,4 +185,47 @@ export async function logout(): Promise<void> {
 /** Subscribe to auth-state changes. Returns the unsubscribe function. */
 export function observeAuth(cb: (user: User | null) => void): () => void {
   return onAuthStateChanged(auth, cb)
+}
+
+/**
+ * Send the password-reset email (in Portuguese). The link is Firebase's: valid for 1 hour and
+ * single-use, so an expired or already-used link is refused by the reset page.
+ *
+ * Never reveals whether the e-mail has an account: `auth/user-not-found` (projects without email
+ * enumeration protection) resolves like a success, and the screen shows the same message either way.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  auth.languageCode = 'pt-BR'
+  try {
+    await sendPasswordResetEmail(auth, email)
+  } catch (e) {
+    if ((e as { code?: string } | null)?.code === 'auth/user-not-found') return
+    throw e
+  }
+}
+
+/** Errors a forced token refresh returns when the session can no longer be used. */
+const REVOKED_SESSION_CODES = new Set([
+  'auth/user-token-expired',
+  'auth/invalid-user-token',
+  'auth/user-disabled',
+  'auth/user-not-found',
+])
+
+/**
+ * Check with the server that the current session is still valid by forcing a token refresh.
+ * Changing the password (e.g. through a reset link) revokes every refresh token of the account,
+ * so other devices get 'revoked' here; without this check they would only notice when the hourly
+ * ID token expires. Network errors give 'unknown' — never sign out for being offline.
+ */
+export async function verifySession(): Promise<'valid' | 'revoked' | 'unknown'> {
+  const user = auth.currentUser
+  if (!user) return 'unknown'
+  try {
+    await user.getIdToken(true)
+    return 'valid'
+  } catch (e) {
+    const code = (e as { code?: string } | null)?.code
+    return code && REVOKED_SESSION_CODES.has(code) ? 'revoked' : 'unknown'
+  }
 }

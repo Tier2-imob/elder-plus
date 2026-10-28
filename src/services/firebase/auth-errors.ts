@@ -7,6 +7,10 @@ const MESSAGES: Record<string, string> = {
   'auth/wrong-password': 'E-mail ou senha incorretos. Verifique e tente novamente.',
   'auth/too-many-requests': 'Muitas tentativas. Aguarde um momento e tente novamente.',
   'auth/network-request-failed': 'Sem conexão com a internet. Verifique e tente novamente.',
+  'auth/missing-email': 'Digite seu e-mail.',
+  // Redefinição de senha (o link é aberto fora do app, na página do Firebase)
+  'auth/expired-action-code': 'Este link expirou. Peça um novo link de redefinição.',
+  'auth/invalid-action-code': 'Este link é inválido ou já foi usado. Peça um novo link de redefinição.',
   'app/too-many-attempts': 'Muitas tentativas. Tente novamente em alguns instantes.',
   'app/partner-not-available': 'O Portal do Parceiro ainda não está disponível. Em breve!',
   'app/terms-not-accepted':

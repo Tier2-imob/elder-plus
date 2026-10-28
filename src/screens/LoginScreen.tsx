@@ -34,12 +34,15 @@ export function LoginScreen({
     onLogin,
     brandMark,
     backgroundIlustration,
+    notice,
     topInset = 0
 }: {
     onSelectRole: (role: AccountRole) => void
     onLogin?: () => void
     brandMark?: number
     backgroundIlustration?: number
+    /** Informational banner, e.g. the session ended because the password changed. */
+    notice?: string
     topInset?: number
 }){
     return(
@@ -52,6 +55,17 @@ export function LoginScreen({
                 {brandMark ? (
                     <View className='items-center mb-7'>
                         <Image source={brandMark} resizeMode='contain' style={{ width: 96, height: 80}} />
+                    </View>
+                ) : null}
+
+                {notice ? (
+                    <View
+                        accessible
+                        accessibilityRole='alert'
+                        className='flex-row items-start gap-3 rounded-2xl p-4 mb-5 bg-white border border-hairline'
+                    >
+                        <MaterialIcons name='lock-reset' size={22} color='#11375C' />
+                        <Text className='flex-1 font-hanken text-ink text-[15px] leading-[22px]'>{notice}</Text>
                     </View>
                 ) : null}
 

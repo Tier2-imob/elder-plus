@@ -9,7 +9,7 @@ import { useAccount } from '@/state/account-context'
 export default function Login() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { signIn, signInWithGoogle } = useAccount()
+  const { signIn, signInWithGoogle, sessionNotice } = useAccount()
 
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
@@ -75,6 +75,8 @@ export default function Login() {
     <AuthLoginScreen
       topInset={insets.top}
       onBack={() => router.back()}
+      onForgotPassword={(email) => router.push({ pathname: '/forgot-password', params: { email } })}
+      notice={sessionNotice}
       onSubmit={handleSubmit}
       onGoogle={handleGoogle}
       submitting={submitting}

@@ -9,7 +9,7 @@ import { useAccount } from '@/state/account-context';
 export default function Index() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { account, loading } = useAccount();
+  const { account, loading, sessionNotice } = useAccount();
 
   function handleSelectRole(role: AccountRole) {
     router.push({ pathname: '/signup', params: { role } });
@@ -24,6 +24,7 @@ export default function Index() {
   return (
     <LoginScreen
       topInset={insets.top}
+      notice={sessionNotice}
       onSelectRole={handleSelectRole}
       onLogin={() => router.push('/login')}
       backgroundIlustration={require('@/assets/images/ilustrations/an-elderly-couple-walking-hand-in-hand-along-a-win.jpg')}
