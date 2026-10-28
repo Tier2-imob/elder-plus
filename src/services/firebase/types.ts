@@ -5,7 +5,10 @@ import type { Timestamp } from 'firebase/firestore'
 /** users/{uid} profile document. */
 export type UserProfile = {
   name: string
+  /** Primary profile (chosen at signup). */
   role: AccountRole
+  /** Every profile of the account (a person can be both `elder` and `family`); includes `role`. */
+  roles: AccountRole[]
   email: string
   createdAt: Timestamp | null
   /** Momento em que o usuário aceitou os termos (carimbo do servidor). LGPD. */
@@ -13,10 +16,11 @@ export type UserProfile = {
   /** Versão dos termos aceita no cadastro (ver TERMS_VERSION). */
   termsVersion: string
   /**
-   * The one care circle this user belongs to (active or pending), or null. May be stale after a
-   * manager removes the user — `clearStaleCircle` clears that.
+   * Care circles this user belongs to (active or pending), up to MAX_CIRCLES. May hold a stale id
+   * after a manager removes the user — `clearStaleCircle` removes it. Profiles from before
+   * multi-circle only have `circleId`, read here as a one-item list.
    */
-  circleId: string | null
+  circleIds: string[]
 }
 
 /** businesses/{businessId}/reviews/{reviewId} document (+ its id). */
@@ -106,6 +110,8 @@ export type CircleDoc = {
   id: string
   /** The assisted person. `uid` is null while the titular is nominal (no account linked). */
   subject: { name: string; uid: string | null }
+  /** persons/{subjectId}: the assisted person as an entity (null on circles from older versions). */
+  subjectId: string | null
   createdBy: string
   createdAt: Timestamp | null
   /** Active + pending members (CIRCLE_LIMITS.maxMembers). */
@@ -155,4 +161,17 @@ export type InviteDoc = {
   usedBy: string | null
   usedAt: Timestamp | null
   revoked: boolean
+}
+
+/**
+ * persons/{personId}: the assisted person as a managed user. Exists without an account or password
+ * (`uid` null) and is cared for by its circle; `uid` is linked once they get their own account.
+ */
+export type PersonDoc = {
+  id: string
+  name: string
+  uid: string | null
+  circleId: string
+  createdBy: string
+  createdAt: Timestamp | null
 }

@@ -8,7 +8,9 @@ rules_version = '2';
 //   circles/{circleId}                 dados do círculo (titular nominal ou com conta)
 //   circles/{circleId}/members/{uid}   papel, permissões, status pendente|ativo
 //   invites/{code}                     convite de uso único, validade de 7 dias
-//   users/{uid}.circleId               "um círculo por usuário"
+//   persons/{personId}                 pessoa assistida (usuário gerenciado; `uid` quando tem conta)
+//   users/{uid}.circleIds              círculos do usuário (até 5); contas antigas: `circleId`
+//   users/{uid}.roles                  perfis do usuário (elder, family, partner); antigas: `role`
 // As escritas com várias partes (criar círculo, aceitar convite, sair) são batches; as regras
 // conferem os documentos entre si com getAfter/existsAfter.
 
@@ -41,12 +43,38 @@ service cloud.firestore {
       return /databases/$(database)/documents/invites/$(code);
     }
 
-    function myAccountRole() {
-      return get(userPath(request.auth.uid)).data.role;
+    function personPath(personId) {
+      return /databases/$(database)/documents/persons/$(personId);
     }
 
-    function myCircleIdBefore() {
-      return get(userPath(request.auth.uid)).data.get('circleId', null);
+    // Perfis de um users/{uid}: `roles` (lista); contas anteriores só têm `role`.
+    function rolesOf(data) {
+      return data.get('roles', [data.get('role', 'family')]);
+    }
+
+    function myRoles() {
+      return rolesOf(get(userPath(request.auth.uid)).data);
+    }
+
+    // Círculos de um users/{uid}: `circleIds` (lista); contas anteriores só têm `circleId`.
+    function circleIdsOf(data) {
+      return data.get('circleIds', [data.get('circleId', null)].removeAll([null]));
+    }
+
+    function myCircleIds() {
+      return circleIdsOf(get(userPath(request.auth.uid)).data);
+    }
+
+    function maxCircles() {
+      return 5;
+    }
+
+    // Criar ou aceitar convite: perfil de cuidado (idoso ou família), ainda não está nesse
+    // círculo e não passou do limite. Parceiros não participam de círculos.
+    function canJoinAnotherCircle(circleId) {
+      return myRoles().hasAny(['elder', 'family'])
+        && !(circleId in myCircleIds())
+        && myCircleIds().size() < maxCircles();
     }
 
     function myMember(circleId) {
@@ -88,24 +116,42 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isSelf(uid);
 
-      // Cadastro exige aceite dos termos carimbado pelo servidor (LGPD).
+      // Cadastro exige aceite dos termos carimbado pelo servidor (LGPD); nasce sem círculos e com
+      // perfis válidos.
       allow create: if isSelf(uid)
         && request.resource.data.termsVersion is string
         && request.resource.data.termsAcceptedAt == request.time
-        && request.resource.data.get('circleId', null) == null;
+        && request.resource.data.get('circleId', null) == null
+        && request.resource.data.get('circleIds', []).size() == 0
+        && rolesOf(request.resource.data).size() >= 1
+        && rolesOf(request.resource.data).toSet().difference(['elder', 'family', 'partner'].toSet()).size() == 0;
 
-      // circleId: pode voltar a null a qualquer momento (sair / ponteiro órfão); só aponta para um
-      // círculo novo se estava vazio e o próprio membro existe lá ao fim do batch.
       allow update: if isSelf(uid)
-        && changed().hasOnly(['circleId', 'name'])
-        && (
-          request.resource.data.get('circleId', null) == null
-          || request.resource.data.circleId == resource.data.get('circleId', null)
+        && changed().hasOnly(['circleId', 'circleIds', 'name', 'roles'])
+        && circleIdsUpdateOk(uid)
+        && rolesUpdateOk();
+
+      // Círculos: sair só remove ids (inclusive ponteiro órfão); entrar acrescenta exatamente um id,
+      // no fim da lista, onde o próprio membro existe ao fim do batch — e respeita o limite.
+      function circleIdsUpdateOk(uid) {
+        let before = circleIdsOf(resource.data);
+        let after = circleIdsOf(request.resource.data);
+        return before.toSet().hasAll(after.toSet())
           || (
-            resource.data.get('circleId', null) == null
-            && existsAfter(memberPath(request.resource.data.circleId, uid))
-          )
-        );
+            after.size() == before.size() + 1
+            && after.size() <= maxCircles()
+            && after.toSet().hasAll(before.toSet())
+            && existsAfter(memberPath(after[after.size() - 1], uid))
+          );
+      }
+
+      // Perfis: pode acrescentar idoso ou família (parceiro só no cadastro); nunca fica sem nenhum.
+      function rolesUpdateOk() {
+        let before = rolesOf(resource.data);
+        let after = rolesOf(request.resource.data);
+        return after.size() >= 1
+          && after.toSet().difference(before.toSet().union(['elder', 'family'].toSet())).size() == 0;
+      }
 
       // Dados legados por usuário (favoritos, tarefas e medicamentos antes da migração).
       // `{collection}/` antes do curinga: `{document=**}` sozinho casa zero segmentos e valeria
@@ -130,8 +176,7 @@ service cloud.firestore {
       allow read: if signedIn() && exists(memberPath(circleId, request.auth.uid));
 
       allow create: if signedIn()
-        && myAccountRole() != 'partner'
-        && myCircleIdBefore() == null
+        && canJoinAnotherCircle(circleId)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.memberCount == 1
@@ -144,7 +189,12 @@ service cloud.firestore {
         // Conta elder é o próprio titular; as demais criam com titular nominal.
         && (
           request.resource.data.subject.uid == null
-          || (request.resource.data.subject.uid == request.auth.uid && myAccountRole() == 'elder')
+          || (request.resource.data.subject.uid == request.auth.uid && 'elder' in myRoles())
+        )
+        // A pessoa assistida nasce junto, como persons/{subjectId} (apps antigos não a criam).
+        && (
+          request.resource.data.get('subjectId', null) == null
+          || existsAfter(personPath(request.resource.data.subjectId))
         )
         && existsAfter(memberPath(circleId, request.auth.uid));
 
@@ -211,8 +261,7 @@ service cloud.firestore {
           // Convidado: entra pendente, com exatamente o que o convite concede.
           || (
             exists(circlePath(circleId))
-            && myAccountRole() != 'partner'
-            && myCircleIdBefore() == null
+            && canJoinAnotherCircle(circleId)
             && request.resource.data.status == 'pendente'
             && get(invitePath(request.resource.data.inviteCode)).data.circleId == circleId
             && get(invitePath(request.resource.data.inviteCode)).data.usedBy == null
@@ -291,6 +340,40 @@ service cloud.firestore {
           && request.resource.data.by == request.auth.uid
           && request.resource.data.at == request.time;
       }
+    }
+
+    // ─── Pessoa assistida ──────────────────────────────────────────────────────────
+
+    // Usuário gerenciado: existe sem conta nem senha (`uid` nulo) e é cuidado pelo círculo dele.
+    // Quando ganha conta (convite de titular aprovado), `uid` é vinculado uma única vez.
+    match /persons/{personId} {
+      allow read: if signedIn() && exists(memberPath(resource.data.circleId, request.auth.uid));
+
+      // Criada junto com o círculo, pelo criador, apontando para ele.
+      allow create: if signedIn()
+        && request.resource.data.circleId is string
+        && !exists(circlePath(request.resource.data.circleId))
+        && getAfter(circlePath(request.resource.data.circleId)).data.createdBy == request.auth.uid
+        && getAfter(circlePath(request.resource.data.circleId)).data.subjectId == personId
+        && request.resource.data.name == getAfter(circlePath(request.resource.data.circleId)).data.subject.name
+        && request.resource.data.uid == getAfter(circlePath(request.resource.data.circleId)).data.subject.uid
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+
+      // Quem gerencia o círculo: nome, e o vínculo da conta junto com o do círculo.
+      allow update: if can(resource.data.circleId, 'gerenciar-membros')
+        && changed().hasOnly(['name', 'uid'])
+        && (
+          request.resource.data.uid == resource.data.uid
+          || (
+            resource.data.uid == null
+            && getAfter(circlePath(resource.data.circleId)).data.subject.uid == request.resource.data.uid
+          )
+        );
+
+      // Só junto com a exclusão do círculo.
+      allow delete: if can(resource.data.circleId, 'gerenciar-membros')
+        && !existsAfter(circlePath(resource.data.circleId));
     }
 
     // ─── Convites ───────────────────────────────────────────────────────────────

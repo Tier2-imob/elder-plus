@@ -1,5 +1,7 @@
 import {
+  arrayRemove,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -52,6 +54,20 @@ const circleRef = (circleId: string) => doc(db, 'circles', circleId)
 const memberRef = (circleId: string, uid: string) => doc(db, 'circles', circleId, 'members', uid)
 const inviteRef = (code: string) => doc(db, 'invites', code)
 const userRef = (uid: string) => doc(db, 'users', uid)
+const personRef = (personId: string) => doc(db, 'persons', personId)
+
+/**
+ * users/{uid} change adding `circleId` to the user's circles. Written as the full list, with the new
+ * id last (firestore.rules checks exactly that), from the list the app knows; a stale list is
+ * refused by the rules rather than dropping a circle. Also drops the pre-multi-circle `circleId`.
+ */
+const joinCircleIds = (currentCircleIds: string[], circleId: string) => ({
+  circleIds: [...currentCircleIds.filter((id) => id !== circleId), circleId],
+  circleId: deleteField(),
+})
+
+/** users/{uid} change removing `circleId` from the user's circles. */
+const leaveCircleIds = (circleId: string) => ({ circleIds: arrayRemove(circleId), circleId: deleteField() })
 
 // 'estimate' so docs written on this device show a local time while the server stamp is pending.
 function toCircle(snap: DocumentSnapshot<DocumentData>): CircleDoc | null {
@@ -60,6 +76,7 @@ function toCircle(snap: DocumentSnapshot<DocumentData>): CircleDoc | null {
   return {
     id: snap.id,
     subject: { name: data.subject?.name ?? '', uid: data.subject?.uid ?? null },
+    subjectId: typeof data.subjectId === 'string' ? data.subjectId : null,
     createdBy: data.createdBy,
     createdAt: data.createdAt ?? null,
     memberCount: data.memberCount ?? 0,
@@ -159,36 +176,49 @@ export function observeOwnMember(
  * Clear a users/{uid}.circleId left behind after a manager removed or rejected the user (the
  * manager cannot write another user's profile): the user simply has no circle again.
  */
-export async function clearStaleCircle(uid: string): Promise<void> {
-  await updateDoc(userRef(uid), { circleId: null })
+export async function clearStaleCircle(uid: string, circleId: string): Promise<void> {
+  await updateDoc(userRef(uid), leaveCircleIds(circleId))
 }
 
 // ─── Criação ───────────────────────────────────────────────────────────────────
 
 /**
- * Create the user's circle. An `elder` account becomes the titular itself; any other account
- * becomes the admin of a circle whose titular is nominal (`subjectName`). The creator's consent
- * declaration is stamped by the server.
+ * Create a circle. `forSelf` (elder profile): the user is the titular (assisted person) of their
+ * own circle; otherwise they become the admin of a circle around `subjectName`, a managed person
+ * without an account. The assisted person is created as persons/{id} in the same batch, and the
+ * creator's consent declaration is stamped by the server.
  */
 export async function createCircle(input: {
   uid: string
   name: string
-  accountRole: AccountRole
-  currentCircleId: string | null
+  roles: AccountRole[]
+  currentCircleIds: string[]
+  forSelf: boolean
   subjectName?: string
   consentVersion: string
 }): Promise<string> {
-  const blocked = checkAccountCanJoin(input.accountRole, input.currentCircleId)
+  const blocked = checkAccountCanJoin(input.roles, input.currentCircleIds)
   if (blocked) throw circleError(blocked)
+  if (input.forSelf && !input.roles.includes('elder')) throw circleError('circle/not-allowed')
 
-  const isTitular = input.accountRole === 'elder'
+  const isTitular = input.forSelf
+  const subject = {
+    name: isTitular ? input.name : (input.subjectName ?? '').trim(),
+    uid: isTitular ? input.uid : null,
+  }
   const ref = doc(collection(db, 'circles'))
+  const person = doc(collection(db, 'persons'))
   const batch = writeBatch(db)
+  batch.set(person, {
+    name: subject.name,
+    uid: subject.uid,
+    circleId: ref.id,
+    createdBy: input.uid,
+    createdAt: serverTimestamp(),
+  })
   batch.set(ref, {
-    subject: {
-      name: isTitular ? input.name : (input.subjectName ?? '').trim(),
-      uid: isTitular ? input.uid : null,
-    },
+    subject,
+    subjectId: person.id,
     createdBy: input.uid,
     createdAt: serverTimestamp(),
     memberCount: 1,
@@ -209,7 +239,7 @@ export async function createCircle(input: {
     lastAccess: serverTimestamp(),
     consent: { at: serverTimestamp(), version: input.consentVersion },
   })
-  batch.update(userRef(input.uid), { circleId: ref.id })
+  batch.update(userRef(input.uid), joinCircleIds(input.currentCircleIds, ref.id))
   await batch.commit()
   return ref.id
 }
@@ -282,17 +312,16 @@ export async function revokeInvite(code: string): Promise<void> {
 export async function acceptInvite(input: {
   uid: string
   name: string
-  accountRole: AccountRole
-  currentCircleId: string | null
+  roles: AccountRole[]
+  currentCircleIds: string[]
   code: string
   consentVersion: string
 }): Promise<InviteDoc> {
-  const blocked = checkAccountCanJoin(input.accountRole, input.currentCircleId)
-  if (blocked) throw circleError(blocked)
-
   const invite = await getInvite(input.code)
   const unusable = checkInviteUsable(invite)
   if (unusable || !invite) throw circleError(unusable ?? 'circle/invite-not-found')
+  const blocked = checkAccountCanJoin(input.roles, input.currentCircleIds, invite.circleId)
+  if (blocked) throw circleError(blocked)
 
   const batch = writeBatch(db)
   batch.set(memberRef(invite.circleId, input.uid), {
@@ -309,7 +338,7 @@ export async function acceptInvite(input: {
     consent: { at: serverTimestamp(), version: input.consentVersion },
   })
   batch.update(inviteRef(invite.code), { usedBy: input.uid, usedAt: serverTimestamp() })
-  batch.update(userRef(input.uid), { circleId: invite.circleId })
+  batch.update(userRef(input.uid), joinCircleIds(input.currentCircleIds, invite.circleId))
   batch.update(circleRef(invite.circleId), { memberCount: increment(1) })
   await batch.commit()
   return invite
@@ -317,11 +346,17 @@ export async function acceptInvite(input: {
 
 // ─── Gestão de membros (quem tem gerenciar-membros) ───────────────────────────
 
-/** Approve a pending member. Approving a titular invite links the account to the circle's subject. */
-export async function approveMember(circleId: string, member: CircleMemberDoc): Promise<void> {
+/**
+ * Approve a pending member. Approving a titular invite links the account to the circle's subject
+ * and to the persons/{subjectId} entity (the managed person becomes a person with an account).
+ */
+export async function approveMember(circle: CircleDoc, member: CircleMemberDoc): Promise<void> {
   const batch = writeBatch(db)
-  batch.update(memberRef(circleId, member.uid), { status: 'ativo' })
-  if (member.role === 'titular') batch.update(circleRef(circleId), { 'subject.uid': member.uid })
+  batch.update(memberRef(circle.id, member.uid), { status: 'ativo' })
+  if (member.role === 'titular') {
+    batch.update(circleRef(circle.id), { 'subject.uid': member.uid })
+    if (circle.subjectId) batch.update(personRef(circle.subjectId), { uid: member.uid })
+  }
   await batch.commit()
 }
 
@@ -390,7 +425,7 @@ export async function leaveCircle(circle: CircleDoc, member: CircleMemberDoc): P
     memberCount: increment(-1),
     emergencyCount: Math.max(0, circle.emergencyCount - (member.permissions.includes('emergencia') ? 1 : 0)),
   })
-  batch.update(userRef(member.uid), { circleId: null })
+  batch.update(userRef(member.uid), leaveCircleIds(circle.id))
   await batch.commit()
 }
 
@@ -427,9 +462,10 @@ export async function dissolveCircle(
   members
     .filter((m) => m.uid !== me.uid)
     .forEach((m) => batch.delete(memberRef(circle.id, m.uid)))
+  if (circle.subjectId) batch.delete(personRef(circle.subjectId))
   batch.delete(circleRef(circle.id))
   if (me.role !== 'titular') batch.delete(memberRef(circle.id, me.uid))
-  batch.update(userRef(me.uid), { circleId: null })
+  batch.update(userRef(me.uid), leaveCircleIds(circle.id))
   await batch.commit()
 }
 

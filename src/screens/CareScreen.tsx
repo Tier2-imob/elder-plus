@@ -1,4 +1,5 @@
 import { FloatingNav } from '@/components/FloatingNav'
+import { CircleSwitcher } from '@/components/care/CircleSwitcher'
 import { Logo } from '@/components/Logo'
 import { FamilyView, type FamilyManagement, type FamilySelf } from '@/components/care/FamilyView'
 import { HealthView } from '@/components/care/HealthView'
@@ -52,6 +53,7 @@ export function CareScreen({
   familyManagement,
   familySelf,
   access,
+  circleSwitcher,
   onToggleDone,
   onReschedule,
   onAssign,
@@ -85,6 +87,13 @@ export function CareScreen({
   familyManagement?: FamilyManagement
   /** The viewer's own phone and leaving. */
   familySelf: FamilySelf
+  /** Circle selector (users in more than one circle). */
+  circleSwitcher: {
+    circles: { id: string; name: string }[]
+    activeCircleId: string | null
+    onSelect: (circleId: string) => void
+    onAdd?: () => void
+  }
   /** What the viewer may see/edit (from their circle permissions). */
   access: { canSeeRoutine: boolean; canEditRoutine: boolean; canSeeHealth: boolean; canEditHealth: boolean }
   onToggleDone: (taskId: string, isDone: boolean) => void
@@ -122,6 +131,7 @@ export function CareScreen({
         style={{ paddingTop: topInset + 16 }}
       >
         <Logo size="sm" style={{ width: 80, height: 24, marginBottom: 18 }} />
+        <CircleSwitcher {...circleSwitcher} />
 
         {/* Abas: Rotina / Saúde / Família */}
         <View

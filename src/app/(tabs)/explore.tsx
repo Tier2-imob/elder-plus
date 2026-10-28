@@ -40,6 +40,7 @@ export default function Explore() {
       onDeleteTask={remove}
       topInset={insets.top}
       bottomInset={insets.bottom}
+      onOpenAccount={() => router.push('/account')}
       onLogout={async () => {
         await signOut()
       }}

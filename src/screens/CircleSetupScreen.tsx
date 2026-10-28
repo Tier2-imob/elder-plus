@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 
 import { FloatingNav } from '@/components/FloatingNav'
+import { CircleSwitcher } from '@/components/care/CircleSwitcher'
 import { Logo } from '@/components/Logo'
 
 /**
@@ -288,15 +289,22 @@ function JoinForm({
 }
 
 function CreateForm({
-  isElder,
+  canForSelf,
+  canForOther,
   onCreate,
   onHaveInvite,
 }: {
-  isElder: boolean
+  /** Elder profile without a circle of their own: may be the assisted person. */
+  canForSelf: boolean
+  /** Family profile: may create a circle for someone they care for. */
+  canForOther: boolean
   /** Rejects with a user-facing PT message on failure. */
-  onCreate: (subjectName?: string) => Promise<void>
+  onCreate: (input: { forSelf: boolean; subjectName?: string }) => Promise<void>
   onHaveInvite: () => void
 }) {
+  // With both profiles the user picks; with one, it's decided.
+  const [forSelf, setForSelf] = useState(canForSelf && !canForOther)
+  const isElder = forSelf
   const [subjectName, setSubjectName] = useState('')
   const [accepted, setAccepted] = useState(false)
   const [attempted, setAttempted] = useState(false)
@@ -314,7 +322,7 @@ function CreateForm({
     setSubmitting(true)
     setSubmitError(undefined)
     try {
-      await onCreate(isElder ? undefined : subjectName.trim())
+      await onCreate({ forSelf, subjectName: forSelf ? undefined : subjectName.trim() })
       // Success: the circle state changes and the parent swaps this screen for Cuidados.
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'Não foi possível criar o círculo. Tente novamente.')
@@ -332,6 +340,39 @@ function CreateForm({
           ? 'Reúna familiares e profissionais de confiança para acompanhar sua rotina e sua saúde com você.'
           : 'O círculo reúne quem cuida da pessoa assistida: a rotina, a saúde e a família ficam num só lugar.'}
       </Text>
+
+      {canForSelf && canForOther ? (
+        <View className="mb-6">
+          <Text className="font-hanken-medium text-navy text-[15px] mb-2">Este círculo é</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {[
+              { value: true, label: 'Para mim' },
+              { value: false, label: 'Para alguém que eu cuido' },
+            ].map((option) => (
+              <Pressable
+                key={option.label}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: forSelf === option.value }}
+                accessibilityLabel={option.label}
+                onPress={() => setForSelf(option.value)}
+                className="min-h-[48px] px-4 rounded-full items-center justify-center active:opacity-70"
+                style={{
+                  backgroundColor: forSelf === option.value ? '#11375C' : 'rgba(17,55,92,0.06)',
+                  borderWidth: 1.4,
+                  borderColor: forSelf === option.value ? '#11375C' : '#E4DCD3',
+                }}
+              >
+                <Text
+                  className="font-hanken-bold text-[15px]"
+                  style={{ color: forSelf === option.value ? '#FFFFFF' : '#11375C' }}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <Feature icon="event-note" text="Rotina e tarefas compartilhadas, com responsável por cada uma." />
       <Feature icon="favorite-border" text="Medicamentos, doses e lembretes de saúde." />
@@ -448,22 +489,36 @@ function Message({
 
 export function CircleSetupScreen({
   mode,
-  isElder = false,
+  canCreateForSelf = false,
+  canCreateForOther = false,
   circleName,
   onCreate,
   onLookupInvite,
   onAcceptInvite,
   onCancelPending,
+  onCancelAdding,
+  circleSwitcher,
   onNavigate,
   topInset = 0,
   bottomInset = 0,
 }: {
   mode: CircleSetupMode
-  /** Account role `elder`: creates its own circle as the assisted person. */
-  isElder?: boolean
+  /** Elder profile without a circle of their own: may create one as the assisted person. */
+  canCreateForSelf?: boolean
+  /** Family profile: may create a circle for someone they care for. */
+  canCreateForOther?: boolean
   /** Assisted person's name, shown while pending. */
   circleName?: string
-  onCreate: (subjectName?: string) => Promise<void>
+  onCreate: (input: { forSelf: boolean; subjectName?: string }) => Promise<void>
+  /** Circle selector (users in more than one circle); absent while adding one. */
+  circleSwitcher?: {
+    circles: { id: string; name: string }[]
+    activeCircleId: string | null
+    onSelect: (circleId: string) => void
+    onAdd?: () => void
+  }
+  /** Shown while adding another circle: goes back to the current one. */
+  onCancelAdding?: () => void
   /** Reject with user-facing PT messages. */
   onLookupInvite: (code: string) => Promise<InvitePreview>
   onAcceptInvite: (code: string) => Promise<void>
@@ -498,17 +553,35 @@ export function CircleSetupScreen({
           contentContainerStyle={{ paddingTop: topInset + 16, paddingHorizontal: 24, paddingBottom: bottomInset + 110 }}
         >
           <Logo size="sm" style={{ width: 80, height: 24, marginBottom: 28 }} />
+          {circleSwitcher && mode === 'pending' ? <CircleSwitcher {...circleSwitcher} /> : null}
 
           {mode === 'loading' ? (
             <View className="items-center pt-16" accessible accessibilityLabel="Carregando o círculo de cuidado">
               <ActivityIndicator size="large" color="#11375C" />
             </View>
           ) : mode === 'create' ? (
-            joining ? (
-              <JoinForm onLookup={onLookupInvite} onAccept={onAcceptInvite} onBack={() => setJoining(false)} />
-            ) : (
-              <CreateForm isElder={isElder} onCreate={onCreate} onHaveInvite={() => setJoining(true)} />
-            )
+            <>
+              {joining ? (
+                <JoinForm onLookup={onLookupInvite} onAccept={onAcceptInvite} onBack={() => setJoining(false)} />
+              ) : canCreateForSelf || canCreateForOther ? (
+                <CreateForm
+                  canForSelf={canCreateForSelf}
+                  canForOther={canCreateForOther}
+                  onCreate={onCreate}
+                  onHaveInvite={() => setJoining(true)}
+                />
+              ) : (
+                // Elder profile that already has its own circle: only joining by invite is left.
+                <Message
+                  icon="group-add"
+                  title="Entrar em outro círculo"
+                  text="Você já tem o seu círculo. Para cuidar de outra pessoa, adicione o perfil Família em Minha conta, ou entre com um convite."
+                >
+                  <SecondaryLink label="Tenho um convite" onPress={() => setJoining(true)} />
+                </Message>
+              )}
+              {onCancelAdding ? <SecondaryLink label="Voltar para o meu círculo" onPress={onCancelAdding} /> : null}
+            </>
           ) : mode === 'pending' ? (
             <Message
               icon="hourglass-top"

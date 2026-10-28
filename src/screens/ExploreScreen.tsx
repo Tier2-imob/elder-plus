@@ -62,6 +62,7 @@ export function ExploreScreen({
   onNavigate,
   onLogout,
   onOpenDocuments,
+  onOpenAccount,
 }: {
   name?: string
   showNextTask?: boolean
@@ -83,6 +84,7 @@ export function ExploreScreen({
   onNavigate: (key: string) => void
   onLogout?: () => void
   onOpenDocuments?: () => void
+  onOpenAccount?: () => void
 }) {
   const greeting = name ? `Bem-vindo(a), ${name}` : 'Bem-vindo(a) de volta'
   const [query, setQuery] = useState('')
@@ -124,6 +126,12 @@ export function ExploreScreen({
             <Pressable accessibilityRole="button" accessibilityLabel="Meus documentos"
                        onPress={onOpenDocuments} hitSlop={8} className="active:opacity-60">
               <MaterialIcons name="folder" size={24} color="#11375C" />
+            </Pressable>
+          ) : null}
+          {onOpenAccount ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Minha conta"
+                       onPress={onOpenAccount} hitSlop={8} className="active:opacity-60">
+              <MaterialIcons name="account-circle" size={26} color="#11375C" />
             </Pressable>
           ) : null}
           {onLogout ? (

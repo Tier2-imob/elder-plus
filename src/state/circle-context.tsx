@@ -23,6 +23,7 @@ import {
   canEditMember,
   canLeave,
   canManage,
+  checkAccountCanJoin,
   checkInviteUsable,
   circleError,
   normalizeInviteCode,
@@ -31,8 +32,12 @@ import * as circles from '@/services/firebase/circles';
 import { migrateLegacyCareData } from '@/services/firebase/legacy-migration';
 import type { CircleDoc, CircleMemberDoc, InviteDoc } from '@/services/firebase/types';
 import * as users from '@/services/firebase/users';
+import { readCache, writeCache } from '@/services/local-cache';
 
-type CircleAccount = { uid: string; name: string; role: AccountRole } | null
+type CircleAccount = { uid: string; name: string; roles: AccountRole[] } | null
+
+/** A circle the user takes part in, as the circle selector lists it. */
+export type CircleSummary = { id: string; name: string }
 
 type CircleValue = {
   /**
@@ -40,16 +45,35 @@ type CircleValue = {
    * while the creator's pre-circle data is being moved into it.
    */
   circleLoading: boolean
+  /** Every circle the user takes part in (for the selector), in the order they joined. */
+  circles: CircleSummary[]
+  /** The circle the screens show (the user's choice, kept on the device). */
+  activeCircleId: string | null
+  selectCircle: (circleId: string) => void
+  /**
+   * Show the setup screen to create or join another circle even though the user has circles
+   * (cancel goes back). Not offered past the circle limit or without a care profile.
+   */
+  addingCircle: boolean
+  canAddCircle: boolean
+  startAddingCircle: () => void
+  cancelAddingCircle: () => void
+  /** The account's profiles (elder, family, partner), live. */
+  roles: AccountRole[]
+  /** Elder profile without a circle of their own yet: may create one as the assisted person. */
+  canCreateForSelf: boolean
+  /** Family profile: may create a circle for someone they care for. */
+  canCreateForOther: boolean
   circle: CircleDoc | null
   /** The signed-in user's own member doc (active or pending), or null without a circle. */
   membership: CircleMemberDoc | null
   /** Every member, active and pending. Empty while the user's own membership is pending. */
   members: CircleMemberDoc[]
   /**
-   * Create the user's circle (an `elder` account is the titular itself; any other account names
-   * the assisted person). Throws circle/* errors for the screen to explain.
+   * Create a circle: `forSelf` = the user is the assisted person (elder profile); otherwise around
+   * `subjectName`, a managed person without an account. Throws circle/* errors for the screen.
    */
-  createCircle: (subjectName?: string) => Promise<void>
+  createCircle: (input: { forSelf: boolean; subjectName?: string }) => Promise<void>
 
   // ─── Convites (quem gerencia) ───
   /** Open invites (not used, not revoked, not expired), newest first. Managers only. */
@@ -88,15 +112,30 @@ const CircleContext = createContext<CircleValue | undefined>(undefined)
 const MIGRATION_WAIT_MS = 8000
 
 /**
- * The signed-in user's care circle, live: users/{uid}.circleId → own member doc → circle doc and,
- * once active, the member list. A pointer left behind after a manager removed the user is cleared
- * as soon as the server confirms the member doc is gone.
+ * The signed-in user's care circles, live: users/{uid}.circleIds → for the active circle, own member
+ * doc → circle doc and, once active, the member list. A pointer left behind after a manager removed
+ * the user is cleared as soon as the server confirms the member doc is gone.
  */
 export function CircleProvider({ account, children }: { account: CircleAccount; children: ReactNode }) {
   const uid = account?.uid
 
-  // undefined = not known yet (loading); null = known to be absent.
-  const [circleId, setCircleId] = useState<string | null | undefined>(undefined)
+  // undefined = not known yet (loading).
+  const [circleIds, setCircleIds] = useState<string[] | undefined>(undefined)
+  const [roles, setRoles] = useState<AccountRole[]>(account?.roles ?? [])
+  // The user's pick in the selector (kept on the device) and the "add another circle" flow.
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [addingCircle, setAddingCircle] = useState(false)
+
+  // The circle the screens show: undefined while loading, null when none (or while adding one).
+  const circleId: string | null | undefined =
+    circleIds === undefined
+      ? undefined
+      : addingCircle
+        ? null
+        : selectedId && circleIds.includes(selectedId)
+          ? selectedId
+          : (circleIds[0] ?? null)
+
   const [membership, setMembership] = useState<CircleMemberDoc | null | undefined>(undefined)
   const [circle, setCircle] = useState<CircleDoc | null | undefined>(undefined)
   const [members, setMembers] = useState<CircleMemberDoc[]>([])
@@ -105,7 +144,9 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const [keyedFor, setKeyedFor] = useState({ uid, circleId })
   if (keyedFor.uid !== uid) {
     setKeyedFor({ uid, circleId: undefined })
-    setCircleId(undefined)
+    setCircleIds(undefined)
+    setSelectedId(null)
+    setAddingCircle(false)
     setMembership(undefined)
     setCircle(undefined)
     setMembers([])
@@ -118,11 +159,55 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
 
   useEffect(() => {
     if (!uid) return
-    return users.observeCircleId(uid, setCircleId, (e) => {
-      console.warn('observeCircleId failed', e)
-      setCircleId(null)
-    })
+    return users.observeMemberships(
+      uid,
+      (value) => {
+        setCircleIds(value.circleIds)
+        setRoles(value.roles)
+      },
+      (e) => {
+        console.warn('observeMemberships failed', e)
+        setCircleIds([])
+      }
+    )
   }, [uid])
+
+  // The last circle the user picked on this device.
+  const activeCacheKey = uid ? `activeCircle:${uid}` : null
+  useEffect(() => {
+    if (!activeCacheKey) return
+    let active = true
+    readCache<string>(activeCacheKey).then((saved) => {
+      if (active && saved) setSelectedId(saved)
+    })
+    return () => {
+      active = false
+    }
+  }, [activeCacheKey])
+
+  const selectCircle = useCallback(
+    (id: string) => {
+      setSelectedId(id)
+      setAddingCircle(false)
+      if (activeCacheKey) void writeCache(activeCacheKey, id)
+    },
+    [activeCacheKey]
+  )
+
+  // Names for the selector: every circle doc the user belongs to (at most CIRCLE_LIMITS.maxCircles).
+  const [circleDocs, setCircleDocs] = useState<Record<string, CircleDoc>>({})
+  const circleIdsKey = (circleIds ?? []).join(',')
+  useEffect(() => {
+    const ids = circleIdsKey ? circleIdsKey.split(',') : []
+    const stops = ids.map((id) =>
+      circles.observeCircle(
+        id,
+        (doc) => setCircleDocs((prev) => (doc ? { ...prev, [id]: doc } : prev)),
+        (e) => console.warn('observeCircle (selector) failed', e)
+      )
+    )
+    return () => stops.forEach((stop) => stop())
+  }, [circleIdsKey])
 
   const clearedStaleFor = useRef<string | null>(null)
 
@@ -135,7 +220,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
         setMembership(member)
         if (!member && !fromCache && clearedStaleFor.current !== circleId) {
           clearedStaleFor.current = circleId
-          circles.clearStaleCircle(uid).catch((e) => console.warn('clearStaleCircle failed', e))
+          circles.clearStaleCircle(uid, circleId).catch((e) => console.warn('clearStaleCircle failed', e))
         }
       },
       (e) => {
@@ -197,23 +282,40 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   }, [uid, circleId, needsMigration, migratedFor])
   const migrating = needsMigration && migratedFor !== circleId
 
+  // After a write that changed the user's circles committed (the server has it), apply it now
+  // rather than wait for the profile listener — its server-ack snapshot proved unreliable.
+  const joined = useCallback(
+    (id: string) => {
+      setCircleIds((prev) => [...(prev ?? []).filter((x) => x !== id), id])
+      selectCircle(id)
+    },
+    [selectCircle]
+  )
+  const left = useCallback((id: string) => {
+    setCircleIds((prev) => (prev ?? []).filter((x) => x !== id))
+  }, [])
+
   const createCircle = useCallback(
-    async (subjectName?: string): Promise<void> => {
+    async (input: { forSelf: boolean; subjectName?: string }): Promise<void> => {
       if (!account) throw new Error('No signed-in user')
       const id = await circles.createCircle({
         uid: account.uid,
         name: account.name,
-        accountRole: account.role,
-        currentCircleId: circleId ?? null,
-        subjectName,
+        roles,
+        currentCircleIds: circleIds ?? [],
+        forSelf: input.forSelf,
+        subjectName: input.subjectName,
         consentVersion: CIRCLE_CONSENT_VERSION,
       })
-      // The commit resolved, so the server has it: switch now rather than wait for the profile
-      // listener (its server-ack snapshot proved unreliable on some devices).
-      setCircleId(id)
+      joined(id)
     },
-    [account, circleId]
+    [account, roles, circleIds, joined]
   )
+
+  const myCircleDocs = (circleIds ?? []).map((id) => circleDocs[id]).filter((c): c is CircleDoc => !!c)
+  const canCreateForSelf = roles.includes('elder') && !myCircleDocs.some((c) => c.subject.uid === uid)
+  const canCreateForOther = roles.includes('family')
+  const canAddCircle = circleIds !== undefined && checkAccountCanJoin(roles, circleIds) === null
 
   // A failed circle read resolves to null (treated as "no circle"), so this never sticks.
   // ─── Convites ───────────────────────────────────────────────────────────────
@@ -276,7 +378,8 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       const target = findMember(memberUid)
       // One titular per circle: the rules would refuse a second link anyway.
       if (target.role === 'titular' && circle?.subject.uid) throw circleError('circle/titular-exists')
-      await circles.approveMember(circleId, target)
+      if (!circle) throw circleError('circle/not-allowed')
+      await circles.approveMember(circle, target)
     },
     [circleId, circle, findMember]
   )
@@ -310,14 +413,14 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     const blocked = canLeave(membership, members)
     if (blocked) throw circleError(blocked)
     await circles.leaveCircle(circle, membership)
-    setCircleId(null)
-  }, [circle, membership, members])
+    left(circle.id)
+  }, [circle, membership, members, left])
 
   const dissolve = useCallback(async (): Promise<void> => {
     if (!circle || !membership || !canDissolve(membership, members, circle)) throw circleError('circle/not-allowed')
     await circles.dissolveCircle(circle, membership, members)
-    setCircleId(null)
-  }, [circle, membership, members])
+    left(circle.id)
+  }, [circle, membership, members, left])
 
   const updateMyPhone = useCallback(
     async (phone: string): Promise<void> => {
@@ -353,21 +456,21 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       const invite = await circles.acceptInvite({
         uid: account.uid,
         name: account.name,
-        accountRole: account.role,
-        currentCircleId: circleId ?? null,
+        roles,
+        currentCircleIds: circleIds ?? [],
         code,
         consentVersion: CIRCLE_CONSENT_VERSION,
       })
-      setCircleId(invite.circleId)
+      joined(invite.circleId)
     },
-    [account, circleId]
+    [account, roles, circleIds, joined]
   )
 
   const cancelPending = useCallback(async (): Promise<void> => {
     if (!circle || !membership || membership.status !== 'pendente') return
     await circles.leaveCircle(circle, membership)
-    setCircleId(null)
-  }, [circle, membership])
+    left(circle.id)
+  }, [circle, membership, left])
 
   const circleLoading =
     !!uid &&
@@ -378,6 +481,16 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const value = useMemo<CircleValue>(
     () => ({
       circleLoading,
+      circles: (circleIds ?? []).map((id) => ({ id, name: circleDocs[id]?.subject.name ?? '…' })),
+      activeCircleId: circleId ?? null,
+      selectCircle,
+      addingCircle,
+      canAddCircle,
+      startAddingCircle: () => setAddingCircle(true),
+      cancelAddingCircle: () => setAddingCircle(false),
+      roles,
+      canCreateForSelf,
+      canCreateForOther,
       circle: membership ? (circle ?? null) : null,
       membership: membership ?? null,
       members,
@@ -397,6 +510,15 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     }),
     [
       circleLoading,
+      circleIds,
+      circleDocs,
+      circleId,
+      selectCircle,
+      addingCircle,
+      canAddCircle,
+      roles,
+      canCreateForSelf,
+      canCreateForOther,
       circle,
       membership,
       members,

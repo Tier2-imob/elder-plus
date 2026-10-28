@@ -228,4 +228,6 @@ export const CIRCLE_LIMITS = {
   maxMembers: 10,
   maxEmergencyContacts: 3,
   inviteValidityDays: 7,
+  /** Circles one account can take part in (active or pending). Mirrors firestore.rules. */
+  maxCircles: 5,
 }

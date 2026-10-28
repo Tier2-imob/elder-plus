@@ -1,9 +1,12 @@
 import {
+  arrayUnion,
   doc,
   getDoc,
   onSnapshot,
   serverTimestamp,
   setDoc,
+  updateDoc,
+  type DocumentData,
   type FieldValue,
   type Unsubscribe,
 } from 'firebase/firestore'
@@ -41,6 +44,7 @@ export async function createProfile(
   await setDoc(doc(db, 'users', uid), {
     name: input.name,
     role: normalizeRole(input.role),
+    roles: [normalizeRole(input.role)],
     email: input.email,
     createdAt: serverTimestamp(),
     termsVersion: input.termsVersion,
@@ -56,17 +60,35 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
   return {
     name: data.name,
     role: normalizeRole(data.role),
+    roles: rolesOf(data),
     email: data.email,
     createdAt: data.createdAt ?? null,
     termsAcceptedAt: data.termsAcceptedAt ?? null,
     termsVersion: data.termsVersion ?? '',
-    circleId: typeof data.circleId === 'string' ? data.circleId : null,
+    circleIds: circleIdsOf(data),
   }
 }
 
+/** Profiles of a users/{uid} doc: `roles`, or the single `role` of accounts created before. */
+export function rolesOf(data: DocumentData | undefined): AccountRole[] {
+  const roles = Array.isArray(data?.roles) ? data.roles.map(normalizeRole) : [normalizeRole(data?.role)]
+  return [...new Set(roles)]
+}
+
+/** Circles of a users/{uid} doc: `circleIds`, or the single `circleId` of accounts created before. */
+export function circleIdsOf(data: DocumentData | undefined): string[] {
+  if (Array.isArray(data?.circleIds)) return data.circleIds.filter((id: unknown) => typeof id === 'string')
+  return typeof data?.circleId === 'string' ? [data.circleId] : []
+}
+
+/** Add a profile to the account (elder or family; partner only at signup — see firestore.rules). */
+export async function addRole(uid: string, role: Exclude<AccountRole, 'partner'>): Promise<void> {
+  await updateDoc(doc(db, 'users', uid), { roles: arrayUnion(role) })
+}
+
 /**
- * Subscribe to users/{uid}.circleId, so creating, joining or leaving a circle (batched writes that
- * set it) reaches every screen at once. Emits null while the profile has no circle.
+ * Subscribe to the user's circles (users/{uid}.circleIds) and profiles, so creating, joining or
+ * leaving a circle, or adding a profile, reaches every screen at once.
  *
  * Only server-confirmed values are emitted: Firestore shows a local write at once and reverts it
  * if the server rejects the batch, which made the UI jump into the circle and back. Skipping
@@ -74,9 +96,9 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
  * `includeMetadataChanges` is required for that: the server ack only flips hasPendingWrites
  * (the data is unchanged), and without it no snapshot would follow — the screen would wait forever.
  */
-export function observeCircleId(
+export function observeMemberships(
   uid: string,
-  onNext: (circleId: string | null) => void,
+  onNext: (value: { circleIds: string[]; roles: AccountRole[] }) => void,
   onError: (error: Error) => void
 ): Unsubscribe {
   return onSnapshot(
@@ -84,8 +106,7 @@ export function observeCircleId(
     { includeMetadataChanges: true },
     (snap) => {
       if (snap.metadata.hasPendingWrites) return
-      const value = snap.data()?.circleId
-      onNext(typeof value === 'string' ? value : null)
+      onNext({ circleIds: circleIdsOf(snap.data()), roles: rolesOf(snap.data()) })
     },
     onError
   )

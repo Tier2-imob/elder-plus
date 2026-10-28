@@ -24,7 +24,8 @@ import type { UserProfile } from '@/services/firebase/types';
 import * as users from '@/services/firebase/users';
 import { clearAllCaches, readCache, writeCache } from '@/services/local-cache';
 
-type Account = { name: string; role: AccountRole; uid: string } | null
+/** `role` = primary profile (signup); `roles` = every profile of the account (includes `role`). */
+type Account = { name: string; role: AccountRole; roles: AccountRole[]; uid: string } | null
 
 /** Last resolved account, so a returning user enters the app without waiting for Firestore. */
 const ACCOUNT_CACHE_KEY = 'account'
@@ -41,6 +42,8 @@ type AccountContextValue = {
         input: { mode: 'signup'; name?: string; role: AccountRole } | { mode: 'signin' }
     ) => Promise<void>
     signOut: () => Promise<void>
+    /** Add a profile (elder or family) to the account; partner only exists from signup. */
+    addProfile: (role: Exclude<AccountRole, 'partner'>) => Promise<void>
     /** Send the password-reset e-mail (same outcome whether or not the e-mail has an account). */
     requestPasswordReset: (email: string) => Promise<void>
     /** Why the user was signed out without asking (e.g. the password was changed), if so. */
@@ -106,7 +109,7 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 return null
             }
 
-            const next: Account = { name: profile.name, role: profile.role, uid: user.uid }
+            const next: Account = { name: profile.name, role: profile.role, roles: profile.roles, uid: user.uid }
             setAccount(next)
             setSessionNotice(undefined)
             void writeCache(ACCOUNT_CACHE_KEY, next)
@@ -134,7 +137,7 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 const cached = await readCache<NonNullable<Account>>(ACCOUNT_CACHE_KEY)
                 const hasCached = cached?.uid === user.uid
                 if (hasCached) {
-                    setAccount(cached)
+                    setAccount({ ...cached, roles: cached.roles ?? [cached.role] })
                     setLoading(false)
                 }
 
@@ -246,6 +249,17 @@ export function AccountProvider({ children }: { children: ReactNode }){
         await auth.logout()
     }, [])
 
+    const addProfile = useCallback(
+        async (role: Exclude<AccountRole, 'partner'>) => {
+            if (!account) return
+            await users.addRole(account.uid, role)
+            const next: Account = { ...account, roles: [...new Set([...account.roles, role])] }
+            setAccount(next)
+            void writeCache(ACCOUNT_CACHE_KEY, next)
+        },
+        [account]
+    )
+
     const requestPasswordReset = useCallback(async (email: string) => {
         await auth.requestPasswordReset(email.trim())
     }, [])
@@ -311,6 +325,7 @@ export function AccountProvider({ children }: { children: ReactNode }){
             signIn,
             signInWithGoogle,
             signOut,
+            addProfile,
             requestPasswordReset,
             sessionNotice,
             clearSessionNotice,
@@ -325,6 +340,7 @@ export function AccountProvider({ children }: { children: ReactNode }){
             signIn,
             signInWithGoogle,
             signOut,
+            addProfile,
             requestPasswordReset,
             sessionNotice,
             clearSessionNotice,

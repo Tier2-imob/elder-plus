@@ -28,6 +28,7 @@ export type CircleErrorCode =
   | 'circle/last-manager'
   | 'circle/emergency-needs-phone'
   | 'circle/invalid-phone'
+  | 'circle/too-many-circles'
 
 export function circleError(code: CircleErrorCode): Error & { code: CircleErrorCode } {
   const error = new Error(code) as Error & { code: CircleErrorCode }
@@ -37,7 +38,8 @@ export function circleError(code: CircleErrorCode): Error & { code: CircleErrorC
 
 const MESSAGES: Record<CircleErrorCode, string> = {
   'circle/partner-not-allowed': 'Contas de comércio e parceiros não participam de círculos de cuidado.',
-  'circle/already-in-circle': 'Você já participa de um círculo. Saia dele para entrar em outro.',
+  'circle/already-in-circle': 'Você já participa deste círculo.',
+  'circle/too-many-circles': `Você já participa de ${CIRCLE_LIMITS.maxCircles} círculos, o limite atual.`,
   'circle/full': `O círculo já tem ${CIRCLE_LIMITS.maxMembers} membros, o limite atual.`,
   'circle/emergency-full': `O círculo já tem ${CIRCLE_LIMITS.maxEmergencyContacts} contatos de emergência.`,
   'circle/invite-not-found': 'Código de convite não encontrado. Confira e tente novamente.',
@@ -139,10 +141,18 @@ export const isAssignable = (member: CircleMemberDoc) => hasPermission(member, '
 
 // ─── Criação, convite e aceite ─────────────────────────────────────────────────
 
-/** Who may create or join a circle at all. */
-export function checkAccountCanJoin(accountRole: AccountRole, currentCircleId: string | null): CircleErrorCode | null {
-  if (accountRole === 'partner') return 'circle/partner-not-allowed'
-  if (currentCircleId) return 'circle/already-in-circle'
+/** A care profile (elder or family) is needed to take part in circles; partners never do. */
+export const hasCareProfile = (roles: AccountRole[]) => roles.includes('elder') || roles.includes('family')
+
+/** Who may create or join a(nother) circle. `circleId` = the one being joined, when known. */
+export function checkAccountCanJoin(
+  roles: AccountRole[],
+  currentCircleIds: string[],
+  circleId?: string
+): CircleErrorCode | null {
+  if (!hasCareProfile(roles)) return 'circle/partner-not-allowed'
+  if (circleId && currentCircleIds.includes(circleId)) return 'circle/already-in-circle'
+  if (currentCircleIds.length >= CIRCLE_LIMITS.maxCircles) return 'circle/too-many-circles'
   return null
 }
 

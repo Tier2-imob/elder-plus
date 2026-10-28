@@ -7,6 +7,7 @@ import { useMedications } from '@/hooks/useMedications'
 import { CareScreen } from '@/screens/CareScreen'
 import { CircleSetupScreen, type CircleSetupMode, type InvitePreview } from '@/screens/CircleSetupScreen'
 import {
+  hasCareProfile,
   canDissolve,
   canLeave,
   canManage,
@@ -79,6 +80,16 @@ export default function Care() {
   } = useCareTasks()
   const {
     circleLoading,
+    circles,
+    activeCircleId,
+    selectCircle,
+    addingCircle,
+    canAddCircle,
+    startAddingCircle,
+    cancelAddingCircle,
+    roles,
+    canCreateForSelf,
+    canCreateForOther,
     circle,
     membership,
     members,
@@ -106,10 +117,18 @@ export default function Care() {
     if (key === 'explore') router.navigate('/explore')
   }
 
+  const circleSwitcher = {
+    circles,
+    activeCircleId,
+    onSelect: selectCircle,
+    onAdd: canAddCircle ? startAddingCircle : undefined,
+  }
+
   // Routine/health/family only open for an active member of a circle.
-  if (account?.role === 'partner' || circleLoading || !circle || membership?.status !== 'ativo') {
+  const isPartnerOnly = !hasCareProfile(roles.length ? roles : (account?.roles ?? []))
+  if (isPartnerOnly || circleLoading || !circle || membership?.status !== 'ativo') {
     const mode: CircleSetupMode =
-      account?.role === 'partner'
+      isPartnerOnly
         ? 'partner'
         : circleLoading
           ? 'loading'
@@ -119,7 +138,10 @@ export default function Care() {
     return (
       <CircleSetupScreen
         mode={mode}
-        isElder={account?.role === 'elder'}
+        canCreateForSelf={canCreateForSelf}
+        canCreateForOther={canCreateForOther}
+        onCancelAdding={addingCircle && circles.length > 0 ? cancelAddingCircle : undefined}
+        circleSwitcher={addingCircle ? undefined : circleSwitcher}
         circleName={circle?.subject.name}
         onCreate={inPortuguese('createCircle', createCircle)}
         onLookupInvite={inPortuguese('lookupInvite', async (code: string) => toInvitePreview(await lookupInvite(code)))}
@@ -148,6 +170,7 @@ export default function Care() {
       healthStats={APPOINTMENT_STATS}
       // Responsible-person options: active members who can see the routine.
       familyMembers={members.filter(isAssignable).map((m) => toFamilyMember(m, membership))}
+      circleSwitcher={circleSwitcher}
       access={{
         canSeeRoutine: hasPermission(membership, 'ver-rotina'),
         canEditRoutine: hasPermission(membership, 'editar-rotina'),
