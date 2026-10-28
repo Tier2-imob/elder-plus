@@ -22,7 +22,7 @@ import * as auth from '@/services/firebase/auth';
 import * as favorites from '@/services/firebase/favorites';
 import type { UserProfile } from '@/services/firebase/types';
 import * as users from '@/services/firebase/users';
-import { clearCache, readCache, writeCache } from '@/services/local-cache';
+import { clearAllCaches, readCache, writeCache } from '@/services/local-cache';
 
 type Account = { name: string; role: AccountRole; uid: string } | null
 
@@ -123,7 +123,9 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 if (!user) {
                     setAccount(null)
                     setFavoriteIds(new Set())
-                    void clearCache(ACCOUNT_CACHE_KEY)
+                    // Session over (logout, revoked or expired): wipe every cached entry from the
+                    // device — profile and the circle's tasks — not just the account.
+                    void clearAllCaches()
                     return
                 }
 
@@ -152,7 +154,7 @@ export function AccountProvider({ children }: { children: ReactNode }){
                 // signed-out at the app layer + surface a one-time error.
                 setAccount(null)
                 setFavoriteIds(new Set())
-                void clearCache(ACCOUNT_CACHE_KEY)
+                void clearAllCaches()
                 setProfileError('Não foi possível carregar seu perfil. Entre novamente.')
             } finally {
                 setLoading(false)

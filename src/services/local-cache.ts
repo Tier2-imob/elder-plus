@@ -33,3 +33,16 @@ export async function clearCache(key: string): Promise<void> {
     console.warn('clearCache failed', key, e)
   }
 }
+
+/**
+ * Remove every app cache entry (account profile, circle tasks…) from the device — used when the
+ * session ends, so no care data stays on the phone after logout. Never throws.
+ */
+export async function clearAllCaches(): Promise<void> {
+  try {
+    const keys = (await AsyncStorage.getAllKeys()).filter((key) => key.startsWith(PREFIX))
+    if (keys.length) await AsyncStorage.multiRemove(keys)
+  } catch (e) {
+    console.warn('clearAllCaches failed', e)
+  }
+}

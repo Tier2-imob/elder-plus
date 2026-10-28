@@ -177,9 +177,15 @@ export async function signInWithGoogle(
   return cred.user
 }
 
-/** Sign out the current user. */
+/**
+ * Sign out the current user: the Firebase session (and its persisted tokens) and the Google
+ * session, so the next "Continuar com Google" asks which account to use. The app's cached data is
+ * cleared by the auth-state listener (account-context), which also covers revoked sessions.
+ */
 export async function logout(): Promise<void> {
   await firebaseSignOut(auth)
+  // Not signed in with Google (e-mail account) is not an error.
+  await GoogleSignin.signOut().catch(() => {})
 }
 
 /** Subscribe to auth-state changes. Returns the unsubscribe function. */
