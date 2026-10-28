@@ -5,8 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 // entry in tsconfig `paths` supplies the matching types — so this is fully typed (no TS2305).
 import { getReactNativePersistence } from '@firebase/auth'
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app'
-import { getAuth, initializeAuth, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import { connectAuthEmulator, getAuth, initializeAuth, type Auth } from 'firebase/auth'
+import { connectFirestoreEmulator, getFirestore, type Firestore } from 'firebase/firestore'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 // Config comes only from the environment (.env locally, EAS environment variables in builds) —
@@ -65,6 +65,20 @@ try {
 }
 
 const db: Firestore = getFirestore(app)
+
+// Desenvolvimento local: com EXPO_PUBLIC_FIREBASE_EMULATOR_HOST (o IP do computador na rede, em
+// .env.local) o app usa o Firebase Emulator (`npm run emulators`) em vez de homologação. O
+// EXPO_PUBLIC_FIREBASE_PROJECT_ID precisa ser "demo-elder", o projeto do emulador.
+const emulatorHost = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST
+if (emulatorHost) {
+  try {
+    connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true })
+    connectFirestoreEmulator(db, emulatorHost, 8080)
+  } catch (error) {
+    // Fast Refresh re-runs this module: the emulator connection is already set up.
+    console.warn('Firebase emulator already connected', error)
+  }
+}
 const storage: FirebaseStorage = getStorage(app)
 
 export { app, auth, db, storage }

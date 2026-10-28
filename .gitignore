@@ -47,3 +47,9 @@ example
 .agents/
 .kiro/
 .clinerules/
+
+# Firebase: chaves de conta de serviço (migrations em homologação) e dados/logs do emulador
+secrets/
+firebase-debug*.log
+firestore-debug.log
+ui-debug.log

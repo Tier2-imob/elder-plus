@@ -42,6 +42,8 @@
     "babel-preset-expo": "^57.0.11",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
+    "firebase-admin": "^14.5.0",
+    "firebase-tools": "^15.34.2",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.3"
@@ -52,7 +54,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "emulators": "firebase emulators:start --only auth,firestore --project dev",
+    "migrate:dev": "node scripts/migrate.mjs --env dev",
+    "migrate:hml": "node scripts/migrate.mjs --env hml",
+    "rules:hml": "firebase deploy --only firestore:rules --project hml"
   },
   "private": true
 }
