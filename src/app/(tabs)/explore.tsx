@@ -10,7 +10,7 @@ import { toFamilyMember, useCircle } from '@/state/circle-context'
 export default function Explore() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { account, signOut } = useAccount()
+  const { account } = useAccount()
   const {
     task: nearestTask,
     done: nearestTaskDone,
@@ -41,9 +41,6 @@ export default function Explore() {
       topInset={insets.top}
       bottomInset={insets.bottom}
       onOpenAccount={() => router.push('/account')}
-      onLogout={async () => {
-        await signOut()
-      }}
       // Entrada de Documentos (Firebase Storage) oculta por ora: o Storage não
       // foi ativado no console e o plano de uso dos documentos ainda vai amadurecer.
       // Para reativar, descomente a linha abaixo (a tela/rota/service já existem).

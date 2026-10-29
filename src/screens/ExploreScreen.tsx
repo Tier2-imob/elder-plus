@@ -60,7 +60,6 @@ export function ExploreScreen({
   onSelectCategory,
   onSelectBusiness,
   onNavigate,
-  onLogout,
   onOpenDocuments,
   onOpenAccount,
 }: {
@@ -82,7 +81,6 @@ export function ExploreScreen({
   onSelectCategory: (category: Category) => void
   onSelectBusiness: (item: SearchResult) => void
   onNavigate: (key: string) => void
-  onLogout?: () => void
   onOpenDocuments?: () => void
   onOpenAccount?: () => void
 }) {
@@ -120,27 +118,27 @@ export function ExploreScreen({
       keyboardShouldPersistTaps="handled"
     >
       <View className="flex-row items-center justify-between px-7 mb-5">
-        <Logo size="sm" style={{ width: 80, height: 24 }} />
-        <View className="flex-row items-center gap-4">
-          {onOpenDocuments ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Meus documentos"
-                       onPress={onOpenDocuments} hitSlop={8} className="active:opacity-60">
-              <MaterialIcons name="folder" size={24} color="#11375C" />
-            </Pressable>
-          ) : null}
-          {onOpenAccount ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Minha conta"
-                       onPress={onOpenAccount} hitSlop={8} className="active:opacity-60">
-              <MaterialIcons name="account-circle" size={26} color="#11375C" />
-            </Pressable>
-          ) : null}
-          {onLogout ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Sair"
-                       onPress={onLogout} hitSlop={8} className="active:opacity-60">
-              <MaterialIcons name="logout" size={22} color="#11375C" />
-            </Pressable>
-          ) : null}
-        </View>
+        {/* Profile button: the icon and the Elder+ mark are one tap target ("Minha conta", where
+            signing out lives). */}
+        {onOpenAccount ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Minha conta"
+            onPress={onOpenAccount}
+            className="min-h-[48px] flex-row items-center gap-2 pr-2 active:opacity-60"
+          >
+            <MaterialIcons name="account-circle" size={30} color="#11375C" />
+            <Logo size="sm" style={{ width: 80, height: 24 }} />
+          </Pressable>
+        ) : (
+          <Logo size="sm" style={{ width: 80, height: 24 }} />
+        )}
+        {onOpenDocuments ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Meus documentos"
+                     onPress={onOpenDocuments} hitSlop={8} className="active:opacity-60">
+            <MaterialIcons name="folder" size={24} color="#11375C" />
+          </Pressable>
+        ) : null}
       </View>
       <View className="px-6">
         {/* Card de boas-vindas com busca funcional */}
