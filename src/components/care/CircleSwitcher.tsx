@@ -1,10 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { Pressable, ScrollView, Text } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 
 /**
- * Circle selector for users in more than one care circle: one pill per circle ("Dona Maria",
- * "Seu João") and, when allowed, "+ Adicionar". Renders nothing with a single circle and nothing
- * to add.
+ * "Meus círculos": the care circles the user takes part in, as a titled section — one pill per
+ * circle ("Dona Maria", "Seu João") and, when allowed, "+ Adicionar". Renders nothing with a single
+ * circle and nothing to add.
  */
 export function CircleSwitcher({
   circles,
@@ -21,12 +21,15 @@ export function CircleSwitcher({
   if (circles.length < 2 && !onAdd) return null
 
   return (
+    <View className="mb-4">
+    <Text accessibilityRole="header" className="font-hanken-bold text-navy text-lg mb-2">
+      Meus círculos
+    </Text>
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ gap: 8 }}
-      className="mb-4"
-      accessibilityLabel="Círculos de cuidado"
+      accessibilityLabel="Meus círculos de cuidado"
     >
       {circles.map((c) => {
         const active = c.id === activeCircleId
@@ -64,5 +67,6 @@ export function CircleSwitcher({
         </Pressable>
       ) : null}
     </ScrollView>
+    </View>
   )
 }
