@@ -97,8 +97,13 @@ export async function signIn(input: {
  * swallow so no error is shown.
  */
 export async function signInWithGoogle(
-  input: { mode: 'signup'; role?: AccountRole; name?: string } | { mode: 'signin' }
+  input: { mode: 'signup'; role?: AccountRole; name?: string; acceptedTerms: boolean } | { mode: 'signin' }
 ): Promise<User> {
+  // Creating the profile stamps termsAcceptedAt: never without the user's explicit consent.
+  if (input.mode === 'signup' && input.acceptedTerms !== true) {
+    throw errorWithCode('app/terms-not-accepted', 'terms-not-accepted')
+  }
+
   // (a) Partner block FIRST — before any Google/Firebase call, mirroring the email signUp path.
   if (input.mode === 'signup' && normalizeRole(input.role) === 'partner') {
     throw errorWithCode('app/partner-not-available', 'partner-not-available')

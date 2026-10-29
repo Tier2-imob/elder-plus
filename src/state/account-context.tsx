@@ -39,7 +39,7 @@ type AccountContextValue = {
     signUp: (input: { name: string; role: AccountRole; email: string; password: string; acceptedTerms: boolean }) => Promise<void>
     signIn: (input: { email: string; password: string }) => Promise<void>
     signInWithGoogle: (
-        input: { mode: 'signup'; name?: string; role: AccountRole } | { mode: 'signin' }
+        input: { mode: 'signup'; name?: string; role: AccountRole; acceptedTerms: boolean } | { mode: 'signin' }
     ) => Promise<void>
     signOut: () => Promise<void>
     /** Add a profile (elder or family) to the account; partner only exists from signup. */
@@ -222,7 +222,14 @@ export function AccountProvider({ children }: { children: ReactNode }){
     }, [])
 
     const signInWithGoogle = useCallback(
-        async (input: { mode: 'signup'; name?: string; role: AccountRole } | { mode: 'signin' }) => {
+        async (input: { mode: 'signup'; name?: string; role: AccountRole; acceptedTerms: boolean } | { mode: 'signin' }) => {
+            if (input.mode === 'signup' && input.acceptedTerms !== true) {
+                // Defense in depth, like the email signUp: never create a profile (which stamps
+                // the terms acceptance) without recorded consent — block before any Google call.
+                const error = new Error('terms-not-accepted') as Error & { code?: string }
+                error.code = 'app/terms-not-accepted'
+                throw error
+            }
             if (input.mode === 'signup' && users.normalizeRole(input.role) === 'partner') {
                 // Partner is blocked before any Google/Firebase call, mirroring the email signUp
                 // guard (auth.signInWithGoogle also guards defensively).

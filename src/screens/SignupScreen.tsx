@@ -17,7 +17,8 @@ export function SignupScreen({
   role: AccountRole;
   onBack: () => void;
   onContinue: (input: { name: string; email: string; password: string; acceptedTerms: boolean }) => void;
-  onGoogle: () => void | Promise<void>;
+  /** Only called with the terms accepted (the screen shows the terms error otherwise). */
+  onGoogle: (input: { acceptedTerms: boolean }) => void | Promise<void>;
   topInset?: number;
   submitting?: boolean;
   errorMessage?: string;
@@ -58,6 +59,16 @@ export function SignupScreen({
   const emailError = visibleError("email");
   const passwordError = visibleError("password");
   const termsError = attempted ? errors.terms : undefined;
+
+  // "Continuar com Google" also creates the account, so it needs the same explicit consent.
+  function handleGoogle() {
+    if (submitting) return;
+    if (!accepted) {
+      setAttempted(true);
+      return;
+    }
+    onGoogle({ acceptedTerms: true });
+  }
 
   function handleContinue() {
     if (submitting) return;
@@ -191,8 +202,9 @@ export function SignupScreen({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Continuar com Google"
+          accessibilityHint={accepted ? undefined : "Aceite os Termos de Uso e a Política de Privacidade antes"}
           disabled={submitting}
-          onPress={onGoogle}
+          onPress={handleGoogle}
           className="min-h-[56px] rounded-2xl flex-row items-center justify-center gap-2.5 border border-hairline bg-white active:opacity-70"
         >
           <MaterialIcons name="account-circle" size={20} color="#11375C" />

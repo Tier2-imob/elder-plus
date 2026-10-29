@@ -43,13 +43,13 @@ export default function Signup() {
     }
   }
 
-  async function handleGoogle() {
+  async function handleGoogle({ acceptedTerms }: { acceptedTerms: boolean }) {
     setSubmitting(true)
     setErrorMessage(undefined)
     try {
       // No navigation here — RootNavigator redirects once account becomes non-null. Partner is
       // blocked before any Firebase call, same as the email path.
-      await signInWithGoogle({ mode: 'signup', role })
+      await signInWithGoogle({ mode: 'signup', role, acceptedTerms })
     } catch (e) {
       // A user-cancelled Google flow is not an error — swallow the sentinel silently.
       if (e && typeof e === 'object' && (e as { code?: string }).code === 'app/google-cancelled') {
