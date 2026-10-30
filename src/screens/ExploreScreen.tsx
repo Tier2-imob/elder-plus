@@ -46,6 +46,7 @@ export function ExploreScreen({
   name,
   showNextTask = false,
   nearestTask = null,
+  nearestTaskCircleName,
   nearestTaskDone = false,
   taskLoading = false,
   familyMembers = [],
@@ -70,6 +71,8 @@ export function ExploreScreen({
   name?: string
   showNextTask?: boolean
   nearestTask?: Task | null
+  /** Name of the circle the task belongs to, shown as a tag above the card. */
+  nearestTaskCircleName?: string
   nearestTaskDone?: boolean
   taskLoading?: boolean
   familyMembers?: FamilyMember[]
@@ -272,6 +275,19 @@ export function ExploreScreen({
               </View>
             ) : nearestTask ? (
               // Mesmo card da tela Cuidados (formato e ações: concluir, adiar, atribuir).
+              <>
+              {nearestTaskCircleName ? (
+                <View
+                  accessible
+                  accessibilityLabel={`Círculo de ${nearestTaskCircleName}`}
+                  className="self-start flex-row items-center gap-1.5 rounded-full px-3 py-1.5 mb-2 bg-navy"
+                >
+                  <MaterialIcons name="diversity-3" size={16} color="#FFFFFF" />
+                  <Text numberOfLines={1} className="font-hanken-bold text-white text-sm">
+                    {nearestTaskCircleName}
+                  </Text>
+                </View>
+              ) : null}
               <TaskCard
                 task={nearestTask}
                 done={nearestTaskDone}
@@ -285,6 +301,7 @@ export function ExploreScreen({
                 onDelete={onDeleteTask ? () => onDeleteTask(nearestTask.id) : undefined}
                 readOnly={taskReadOnly}
               />
+              </>
             ) : (
               <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
                 <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">

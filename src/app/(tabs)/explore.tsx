@@ -22,7 +22,7 @@ export default function Explore() {
     changeCategory,
     remove,
   } = useNearestTask(account?.uid)
-  const { circle, membership, members, circleLoadError, retryCircle } = useCircle()
+  const { circle, circles, membership, members, circleLoadError, retryCircle } = useCircle()
   const location = useUserLocation()
 
   return (
@@ -32,6 +32,7 @@ export default function Explore() {
       showNextTask={hasPermission(membership, 'ver-rotina')}
       taskReadOnly={!canEditCircleData(membership, circle, 'editar-rotina')}
       nearestTask={nearestTask}
+      nearestTaskCircleName={circles.find((c) => c.id === circle?.id)?.name}
       nearestTaskDone={nearestTaskDone}
       taskLoading={taskLoading}
       familyMembers={members.filter(isAssignable).map((m) => toFamilyMember(m, membership))}
