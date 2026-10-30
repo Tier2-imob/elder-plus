@@ -2,7 +2,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useRef, useState } from 'react'
 import { Modal, Pressable, Text, View } from 'react-native'
 
-import { CircleTag } from './CircleTag'
 import { TaskDetailsModal } from './TaskDetailsModal'
 import { GhostButton, MemberOptions, PickerModal, TimeOptions } from './TaskPickers'
 import {
@@ -86,7 +85,7 @@ export function TaskCard({
   onChangeCategory,
   onDelete,
   readOnly = false,
-  circleName,
+  embedded = false,
 }: {
   task: Task
   done: boolean
@@ -99,8 +98,8 @@ export function TaskCard({
   onDelete?: () => void
   /** Viewer without `editar-rotina`: no actions, no delete, details without edits. */
   readOnly?: boolean
-  /** Shows a tag with the circle the task belongs to (Explore, where tasks of several circles sit together). */
-  circleName?: string
+  /** Drawn without its own border, margin and padding, to sit inside a card that already frames it (Explore). */
+  embedded?: boolean
 }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -132,11 +131,12 @@ export function TaskCard({
       onPress={() => setDetailsOpen(true)}
       onLongPress={canDelete ? enterDeleteMode : undefined}
       delayLongPress={450}
-      className="rounded-3xl border mb-4 p-5 active:opacity-90"
-      style={{
-        borderColor: done ? '#C8E6C9' : '#E4DCD3',
-        backgroundColor: done ? '#F5FBF5' : '#FFFFFF',
-      }}
+      className={embedded ? 'active:opacity-90' : 'rounded-3xl border mb-4 p-5 active:opacity-90'}
+      style={
+        embedded
+          ? undefined
+          : { borderColor: done ? '#C8E6C9' : '#E4DCD3', backgroundColor: done ? '#F5FBF5' : '#FFFFFF' }
+      }
     >
       {/* Linha superior: ícone da categoria + tags + detalhes */}
       <View className="flex-row items-center gap-2 mb-4">
@@ -219,13 +219,6 @@ export function TaskCard({
           <Text className="font-hanken-medium text-[13px]" style={{ color: done ? '#9fafbd' : '#16283A' }}>
             {task.assignee}
           </Text>
-        </View>
-      ) : null}
-
-      {/* Círculo da tarefa: abaixo das informações */}
-      {circleName ? (
-        <View className="flex-row mb-3">
-          <CircleTag name={circleName} />
         </View>
       ) : null}
 

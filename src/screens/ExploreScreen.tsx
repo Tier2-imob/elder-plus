@@ -37,40 +37,28 @@ const PATROCINADOS: SearchResult[] = [
   { ...CATEGORY_DATA.lazer.items[0], categoryId: 'lazer' },
 ]
 
-/**
- * A card of the "next tasks" section that is not a task: loading, nothing pending, or an error.
- * With `circleName` it carries the circle's tag inside, like the task cards do.
- */
+/** Content of the "next tasks" card that is not a task: loading, nothing pending, or an error. */
 function InfoRow({
   icon,
   text,
   loading = false,
-  circleName,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap
   text: string
   loading?: boolean
-  circleName?: string
 }) {
   return (
-    <View accessibilityLiveRegion="polite" className="p-3.5 rounded-2xl border border-hairline bg-white mb-4">
-      <View className="flex-row items-center gap-3.5">
-        <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
-          {loading ? (
-            <ActivityIndicator size="small" color="#11375C" />
-          ) : (
-            <MaterialIcons name={icon} size={22} color="#11375C" />
-          )}
-        </View>
-        <View className="flex-1">
-          <Text className="font-hanken text-muted text-[15px] leading-[22px]">{text}</Text>
-        </View>
+    <View accessibilityLiveRegion="polite" className="flex-row items-center gap-3.5">
+      <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
+        {loading ? (
+          <ActivityIndicator size="small" color="#11375C" />
+        ) : (
+          <MaterialIcons name={icon} size={22} color="#11375C" />
+        )}
       </View>
-      {circleName ? (
-        <View className="flex-row mt-3">
-          <CircleTag name={circleName} />
-        </View>
-      ) : null}
+      <View className="flex-1">
+        <Text className="font-hanken text-muted text-[15px] leading-[22px]">{text}</Text>
+      </View>
     </View>
   )
 }
@@ -103,7 +91,7 @@ function NextTaskCard({
       }
       onDelete={onDeleteTask ? () => onDeleteTask(entry.circleId, task.id) : undefined}
       readOnly={entry.readOnly}
-      circleName={entry.circleName}
+      embedded
     />
   )
 }
@@ -327,40 +315,44 @@ export function ExploreScreen({
             />
           </View>
         ) : showNextTasks ? (
-          // Each card/row carries its own bottom margin (16px), so the section adds 12px for the usual 28px gap.
-          <View className="mb-3">
+          <View className="mb-7">
             <Text accessibilityRole="header" className="font-hanken-bold text-navy text-3xl mb-2">
               {nextTasks.length > 1 ? 'Próximas tarefas' : 'Próxima tarefa'}
             </Text>
-            {nextTasksLoading ? (
-              <InfoRow icon="schedule" text="Carregando suas tarefas…" loading />
-            ) : (
-              nextTasks.map((entry) => (
-                <View key={entry.circleId}>
-                  {entry.loading ? (
-                    <InfoRow icon="schedule" text="Carregando as tarefas…" loading circleName={entry.circleName} />
-                  ) : entry.error ? (
-                    <InfoRow
-                      icon="cloud-off"
-                      text="Não foi possível carregar as tarefas deste círculo."
-                      circleName={entry.circleName}
-                    />
-                  ) : entry.task ? (
-                    <NextTaskCard
-                      entry={entry}
-                      task={entry.task}
-                      onToggleTaskDone={onToggleTaskDone}
-                      onRescheduleTask={onRescheduleTask}
-                      onAssignTask={onAssignTask}
-                      onChangeTaskCategory={onChangeTaskCategory}
-                      onDeleteTask={onDeleteTask}
-                    />
-                  ) : (
-                    <InfoRow icon="event-available" text="Nenhuma tarefa pendente" circleName={entry.circleName} />
-                  )}
-                </View>
-              ))
-            )}
+            {/* One single card for the whole section; each circle's tag sits right above its task. */}
+            <View className="rounded-3xl border border-hairline bg-white p-5">
+              {nextTasksLoading ? (
+                <InfoRow icon="schedule" text="Carregando suas tarefas…" loading />
+              ) : (
+                nextTasks.map((entry, index) => (
+                  <View
+                    key={entry.circleId}
+                    className={index > 0 ? 'mt-5 pt-5 border-t border-hairline' : undefined}
+                  >
+                    <View className="flex-row mb-3">
+                      <CircleTag name={entry.circleName} />
+                    </View>
+                    {entry.loading ? (
+                      <InfoRow icon="schedule" text="Carregando as tarefas…" loading />
+                    ) : entry.error ? (
+                      <InfoRow icon="cloud-off" text="Não foi possível carregar as tarefas deste círculo." />
+                    ) : entry.task ? (
+                      <NextTaskCard
+                        entry={entry}
+                        task={entry.task}
+                        onToggleTaskDone={onToggleTaskDone}
+                        onRescheduleTask={onRescheduleTask}
+                        onAssignTask={onAssignTask}
+                        onChangeTaskCategory={onChangeTaskCategory}
+                        onDeleteTask={onDeleteTask}
+                      />
+                    ) : (
+                      <InfoRow icon="event-available" text="Nenhuma tarefa pendente" />
+                    )}
+                  </View>
+                ))
+              )}
+            </View>
           </View>
         ) : null}
 
