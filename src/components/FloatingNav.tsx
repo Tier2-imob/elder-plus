@@ -12,7 +12,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated'
 
-type NavKey = 'explore' | 'care'
+export type NavKey = 'explore' | 'care' | 'favorites'
 
 type NavItem = {
   key: NavKey
@@ -23,11 +23,12 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { key: 'explore', label: 'Explorar', icon: 'search' },
   { key: 'care', label: 'Cuidados', icon: 'volunteer-activism' },
+  { key: 'favorites', label: 'Favoritos', icon: 'favorite' },
 ]
 
 const PADDING = 6
 const ITEM_HEIGHT = 56 // the touch-target minimum of the design system
-const BASE_ITEM_WIDTH = 140
+const BASE_ITEM_WIDTH = 124
 const SLIDE_MS = 280
 const INACTIVE_OPACITY = 0.7 // white at 70% on navy still passes 4.5:1 text contrast
 
@@ -113,7 +114,15 @@ export function FloatingNav({
   }, [activeIndex, reduceMotion, position])
 
   const highlightStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: interpolate(position.value, [0, 1], [0, itemWidth]) }],
+    transform: [
+      {
+        translateX: interpolate(
+          position.value,
+          NAV_ITEMS.map((_, i) => i),
+          NAV_ITEMS.map((_, i) => i * itemWidth)
+        ),
+      },
+    ],
   }))
 
   return (

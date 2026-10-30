@@ -64,3 +64,12 @@ export const CATEGORY_DATA: Record<string, CategoryData> = {
     ],
   },
 }
+export const CATEGORY_LABELS: Record<string, string> = {
+  saude: 'Saúde e cuidado',
+  farmacias: 'Farmácias',
+  moradia: 'Moradia',
+  produtos: 'Produtos',
+  servicos: 'Serviços',
+  lazer: 'Lazer e bem-estar',
+  financas: 'Finanças',
+}
