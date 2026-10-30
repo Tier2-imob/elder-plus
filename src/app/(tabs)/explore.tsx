@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useNearestTask } from '@/hooks/useNearestTask'
+import { useUserLocation } from '@/hooks/useUserLocation'
 import { ExploreScreen } from '@/screens/ExploreScreen'
 import { canEditCircleData, hasPermission, isAssignable } from '@/services/circle-rules'
 import { useAccount } from '@/state/account-context'
@@ -22,6 +23,7 @@ export default function Explore() {
     remove,
   } = useNearestTask(account?.uid)
   const { circle, membership, members } = useCircle()
+  const location = useUserLocation()
 
   return (
     <ExploreScreen
@@ -38,6 +40,9 @@ export default function Explore() {
       onAssignTask={assign}
       onChangeTaskCategory={changeCategory}
       onDeleteTask={remove}
+      mapCenter={location.coords}
+      locationStatus={location.status}
+      onEnableLocation={location.enable}
       topInset={insets.top}
       bottomInset={insets.bottom}
       onOpenAccount={() => router.push('/account')}

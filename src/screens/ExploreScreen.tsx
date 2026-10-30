@@ -62,6 +62,9 @@ export function ExploreScreen({
   onNavigate,
   onOpenDocuments,
   onOpenAccount,
+  mapCenter = null,
+  locationStatus = 'ready',
+  onEnableLocation,
 }: {
   name?: string
   showNextTask?: boolean
@@ -83,6 +86,12 @@ export function ExploreScreen({
   onNavigate: (key: string) => void
   onOpenDocuments?: () => void
   onOpenAccount?: () => void
+  /** User's approximate position; the map centres on it when present. */
+  mapCenter?: { latitude: number; longitude: number } | null
+  /** `unsupported` (build without the location module) just shows the map without centring. */
+  locationStatus?: 'locating' | 'ready' | 'denied' | 'unavailable' | 'unsupported'
+  /** Ask for the location permission again (or open the settings). */
+  onEnableLocation?: () => void
 }) {
   const greeting = name ? `Bem-vindo(a), ${name}` : 'Bem-vindo(a) de volta'
   const [query, setQuery] = useState('')
@@ -309,8 +318,35 @@ export function ExploreScreen({
             className="overflow-hidden border border-hairline"
             style={{ height: 200, borderRadius: 20 }}
           >
-            <MapEmbed query="Farmácia" />
+            {/* Wait for the first position so the map does not load twice (somewhere else, then here). */}
+            {locationStatus === 'locating' && !mapCenter ? (
+              <View className="flex-1 items-center justify-center bg-white" accessible accessibilityLabel="Buscando sua localização">
+                <MaterialIcons name="my-location" size={26} color="#6B7A85" />
+              </View>
+            ) : (
+              <MapEmbed query="Farmácia" center={mapCenter} />
+            )}
           </View>
+          {(locationStatus === 'denied' || locationStatus === 'unavailable') && onEnableLocation ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                locationStatus === 'denied'
+                  ? 'Permitir localização para ver serviços perto de você'
+                  : 'Tentar localizar de novo'
+              }
+              onPress={onEnableLocation}
+              className="min-h-[56px] flex-row items-center gap-3 mt-3 px-4 rounded-2xl border border-hairline bg-white active:opacity-70"
+            >
+              <MaterialIcons name="location-off" size={22} color="#DD7C54" />
+              <Text className="flex-1 font-hanken text-ink text-sm leading-5">
+                {locationStatus === 'denied'
+                  ? 'Permita a localização para ver os serviços perto de você.'
+                  : 'Não conseguimos sua localização. Toque para tentar de novo.'}
+              </Text>
+              <MaterialIcons name="chevron-right" size={20} color="#6B7A85" />
+            </Pressable>
+          ) : null}
         </View>
 
         {/* Perto de você */}

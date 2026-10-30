@@ -8,8 +8,16 @@ import { GOOGLE_MAPS_EMBED_KEY } from '@/constants/constants'
  * Google Maps Embed search for `query`, rendered as an iframe inside local HTML (the Maps Embed API
  * refuses to load outside an iframe). Without EXPO_PUBLIC_GOOGLE_MAPS_API_KEY it shows a
  * placeholder instead of a broken map. Fills its parent: the caller sizes and rounds the frame.
+ * With `center`, the map opens on that point (e.g. the user's position) instead of wherever the
+ * search results happen to be.
  */
-export function MapEmbed({ query }: { query: string }) {
+export function MapEmbed({
+  query,
+  center,
+}: {
+  query: string
+  center?: { latitude: number; longitude: number } | null
+}) {
   if (!GOOGLE_MAPS_EMBED_KEY) {
     return (
       <View className="flex-1 items-center justify-center gap-2 bg-white">
@@ -21,7 +29,8 @@ export function MapEmbed({ query }: { query: string }) {
 
   const src =
     `https://www.google.com/maps/embed/v1/search?key=${encodeURIComponent(GOOGLE_MAPS_EMBED_KEY)}` +
-    `&q=${encodeURIComponent(query)}&zoom=14`
+    `&q=${encodeURIComponent(query)}&zoom=14` +
+    (center ? `&center=${center.latitude},${center.longitude}` : '')
 
   return (
     <WebView
