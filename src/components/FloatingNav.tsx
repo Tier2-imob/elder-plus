@@ -66,7 +66,8 @@ function NavButton({
       className="flex-row items-center justify-center rounded-full active:opacity-80"
       style={{ height: ITEM_HEIGHT, paddingHorizontal: 20 }}
     >
-      <Animated.View style={style} className="flex-row items-center gap-2">
+      {/* Inline styles only on Animated views: with a className NativeWind can drop the animated style. */}
+      <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8 }, style]}>
         <MaterialIcons name={item.icon} size={22} color="#FFFFFF" />
         <Text className="font-hanken-bold text-white text-[15px]">{item.label}</Text>
       </Animated.View>
@@ -137,10 +138,20 @@ export function FloatingNav({
           elevation: 10,
         }}
       >
+        {/* The terracotta highlight: slides to the selected item (inline styles only — see NavButton). */}
         <Animated.View
           pointerEvents="none"
-          className="absolute rounded-full"
-          style={[{ top: PADDING, left: 0, height: ITEM_HEIGHT, backgroundColor: '#DD7C54' }, indicatorStyle]}
+          style={[
+            {
+              position: 'absolute',
+              top: PADDING,
+              left: 0,
+              height: ITEM_HEIGHT,
+              borderRadius: ITEM_HEIGHT / 2,
+              backgroundColor: '#DD7C54',
+            },
+            indicatorStyle,
+          ]}
         />
         {NAV_ITEMS.map((item, index) => (
           <NavButton
