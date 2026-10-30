@@ -40,7 +40,7 @@ import {
 
 import { db } from './config'
 import { classifySnapshot, type SnapshotState } from './snapshot-state'
-import type { CircleDoc, CircleMemberDoc, InviteDoc } from './types'
+import type { CircleDoc, CircleMemberDoc, InviteDoc, PersonDoc } from './types'
 
 /**
  * Care circle I/O: circles/{circleId}, circles/{circleId}/members/{uid}, invites/{code} and the
@@ -91,6 +91,22 @@ function toCircle(snap: DocumentSnapshot<DocumentData>): CircleDoc | null {
     status: data.status === 'inativo' ? 'inativo' : 'ativo',
     inactivatedAt: data.inactivatedAt ?? null,
     inactivatedBy: data.inactivatedBy ?? null,
+  }
+}
+
+function toPerson(snap: DocumentSnapshot<DocumentData>): PersonDoc | null {
+  if (!snap.exists()) return null
+  const data = snap.data({ serverTimestamps: 'estimate' })
+  return {
+    id: snap.id,
+    name: data.name ?? '',
+    uid: data.uid ?? null,
+    circleId: data.circleId,
+    createdBy: data.createdBy,
+    createdAt: data.createdAt ?? null,
+    status: data.status === 'inativo' ? 'inativo' : 'ativo',
+    birthDate: typeof data.birthDate === 'string' ? data.birthDate : null,
+    phone: typeof data.phone === 'string' ? data.phone : null,
   }
 }
 
@@ -145,6 +161,15 @@ export function observeCircle(
   onError: (error: Error) => void
 ): Unsubscribe {
   return onSnapshot(circleRef(circleId), (snap) => onNext(toCircle(snap)), onError)
+}
+
+/** The assisted person (name, birth date, phone), live. Readable by the circle's members. */
+export function observePerson(
+  personId: string,
+  onNext: (person: PersonDoc | null) => void,
+  onError: (error: Error) => void
+): Unsubscribe {
+  return onSnapshot(personRef(personId), (snap) => onNext(toPerson(snap)), onError)
 }
 
 /** All members (active and pending). Readable by active members; a pending member only reads itself. */
@@ -211,6 +236,9 @@ export async function createCircle(input: {
   activeCircleCount: number
   forSelf: boolean
   subjectName?: string
+  /** The assisted person's optional data: "YYYY-MM-DD" and digits with the area code. */
+  birthDate?: string | null
+  phone?: string | null
   consentVersion: string
 }): Promise<string> {
   const blocked = checkAccountCanJoin(input.roles, input.currentCircleIds, undefined, input.activeCircleCount)
@@ -228,6 +256,8 @@ export async function createCircle(input: {
   batch.set(person, {
     name: subject.name,
     uid: subject.uid,
+    birthDate: input.birthDate ?? null,
+    phone: input.phone ?? null,
     circleId: ref.id,
     createdBy: input.uid,
     createdAt: serverTimestamp(),
@@ -459,6 +489,26 @@ export async function setCircleActive(circle: CircleDoc, actor: CircleMemberDoc,
   const batch = writeBatch(db)
   batch.update(circleRef(circle.id), change)
   if (circle.subjectId) batch.update(personRef(circle.subjectId), change)
+  await batch.commit()
+}
+
+/**
+ * Update the assisted person's data. The name lives in two places (the person and the circle's
+ * `subject`), so both are written in one batch — the rules refuse one without the other. Only a
+ * manager of an active circle can do this (firestore.rules).
+ */
+export async function updatePerson(
+  circle: CircleDoc,
+  actor: CircleMemberDoc,
+  data: { name: string; birthDate: string | null; phone: string | null }
+): Promise<void> {
+  if (!canManage(actor)) throw circleError('circle/not-allowed')
+  const name = data.name.trim()
+  const batch = writeBatch(db)
+  if (circle.subjectId) {
+    batch.update(personRef(circle.subjectId), { name, birthDate: data.birthDate, phone: data.phone })
+  }
+  if (name !== circle.subject.name) batch.update(circleRef(circle.id), { 'subject.name': name })
   await batch.commit()
 }
 

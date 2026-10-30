@@ -78,6 +78,16 @@ service cloud.firestore {
       return get(circlePath(circleId)).data.get('status', 'ativo') == 'ativo';
     }
 
+    // Dados da pessoa assistida (todos opcionais): nome, data de nascimento "AAAA-MM-DD" e telefone só
+    // com dígitos (DDD + 8 ou 9 dígitos). O app valida o calendário; as regras conferem o formato.
+    function validPersonData(data) {
+      return data.name is string && data.name.trim().size() >= 2 && data.name.size() <= 120
+        && (data.get('birthDate', null) == null
+            || (data.birthDate is string && data.birthDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && (data.get('phone', null) == null
+            || (data.phone is string && data.phone.matches('^[0-9]{10,11}$')));
+    }
+
     // Quem pode excluir o círculo de vez: o titular com conta ou, com titular nominal, quem gerencia.
     function canDeleteCircle(circleId) {
       let circle = get(circlePath(circleId)).data;
@@ -232,6 +242,12 @@ service cloud.firestore {
               && getAfter(memberPath(circleId, request.resource.data.subject.uid)).data.role == 'titular'
               && getAfter(memberPath(circleId, request.resource.data.subject.uid)).data.status == 'ativo'
             )
+          )
+          // O nome da pessoa assistida é um só: mudar o do círculo exige mudar o da pessoa junto.
+          && (
+            request.resource.data.subject.name == resource.data.subject.name
+            || resource.data.get('subjectId', null) == null
+            || getAfter(personPath(resource.data.subjectId)).data.name == request.resource.data.subject.name
           )
         )
         // Inativar / reativar: só quem gerencia. Inativar carimba quando e por quem; reativar limpa.
@@ -408,6 +424,7 @@ service cloud.firestore {
         && getAfter(circlePath(request.resource.data.circleId)).data.subjectId == personId
         && request.resource.data.name == getAfter(circlePath(request.resource.data.circleId)).data.subject.name
         && request.resource.data.uid == getAfter(circlePath(request.resource.data.circleId)).data.subject.uid
+        && validPersonData(request.resource.data)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time;
 
@@ -416,7 +433,9 @@ service cloud.firestore {
       allow update: if can(resource.data.circleId, 'gerenciar-membros') && (
         (
           isCircleActive(resource.data.circleId)
-          && changed().hasOnly(['name', 'uid'])
+          && changed().hasOnly(['name', 'uid', 'birthDate', 'phone'])
+          && validPersonData(request.resource.data)
+          && request.resource.data.name == getAfter(circlePath(resource.data.circleId)).data.subject.name
           && (
             request.resource.data.uid == resource.data.uid
             || (

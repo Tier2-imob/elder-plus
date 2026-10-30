@@ -94,6 +94,8 @@ export default function Care() {
     canCreateForSelf,
     canCreateForOther,
     circle,
+    person,
+    updatePerson,
     circleInactive,
     inactivateCircle,
     reactivateCircle,
@@ -191,6 +193,13 @@ export default function Care() {
         inactive: circleInactive,
         sinceLabel: circle.inactivatedAt ? shortDay(circle.inactivatedAt.toDate()) : undefined,
         onReactivate: canManage(membership) ? inPortuguese('reactivateCircle', reactivateCircle) : undefined,
+      }}
+      personInfo={{
+        birthDate: person?.birthDate ?? null,
+        phone: person?.phone ?? null,
+        // Only a manager of an active circle edits the person's data.
+        canEdit: canManage(membership) && !circleInactive,
+        onSave: inPortuguese('updatePerson', updatePerson),
       }}
       familyLifecycle={{
         subjectName: circle.subject.name,

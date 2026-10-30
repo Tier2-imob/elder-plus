@@ -183,4 +183,8 @@ export type PersonDoc = {
   createdAt: Timestamp | null
   /** Mirrors the circle's status (inactivating the circle inactivates the person; data is kept). */
   status: 'ativo' | 'inativo'
+  /** "YYYY-MM-DD", or null when not informed (optional). */
+  birthDate: string | null
+  /** Digits with the area code ("11912345678"), or null when not informed (optional). */
+  phone: string | null
 }

@@ -2,8 +2,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useState } from 'react'
 import { ActivityIndicator, Linking, Pressable, Text, TextInput, View } from 'react-native'
 
+import { ageFromBirthDate, formatBirthDate, formatPhone } from '@/services/person-data'
+
 import { InviteModal } from './InviteModal'
 import { MemberEditModal } from './MemberEditModal'
+import { PersonDataModal } from './PersonDataModal'
+import type { PersonFormData } from './PersonFields'
 import {
   PERMISSION_LABELS,
   type CircleRole,
@@ -35,6 +39,16 @@ export type FamilyManagement = {
     changes: { role: CircleRole; label: string | null; permissions: PermissionKey[] }
   ) => Promise<void>
   onRemoveMember: (memberId: string) => Promise<void>
+}
+
+/** The assisted person's data shown on the Família tab, and who may edit it. */
+export type FamilyPersonInfo = {
+  birthDate: string | null
+  phone: string | null
+  /** A manager of an active circle: shows "Editar dados". */
+  canEdit: boolean
+  /** Rejects with a user-facing PT message. */
+  onSave: (data: PersonFormData) => Promise<void>
 }
 
 /** What every member can do about their own participation. */
@@ -373,6 +387,7 @@ export function FamilyView({
   management,
   self,
   lifecycle,
+  personInfo,
 }: {
   circleName: string
   members: FamilyMember[]
@@ -380,7 +395,9 @@ export function FamilyView({
   management?: FamilyManagement
   self: FamilySelf
   lifecycle?: FamilyLifecycle
+  personInfo?: FamilyPersonInfo
 }) {
+  const [personFormOpen, setPersonFormOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [editing, setEditing] = useState<FamilyMember | null>(null)
   // The row action in flight ("approve:<id>", "revoke:<code>"...), and the last action error.
@@ -410,14 +427,65 @@ export function FamilyView({
 
   return (
     <View>
-      {/* Círculo */}
-      <View className="flex-row items-center gap-3 p-4 rounded-2xl mb-6" style={{ backgroundColor: 'rgba(17,55,92,0.05)' }}>
-        <MaterialIcons name="diversity-3" size={22} color="#11375C" />
-        <View className="flex-1">
-          <Text className="font-hanken text-muted text-xs">Círculo de cuidado de</Text>
-          <Text className="font-hanken-extrabold text-navy text-base">{circleName}</Text>
+      {/* A pessoa assistida: nome, nascimento, telefone e "Editar dados" */}
+      <View className="p-4 rounded-2xl mb-6" style={{ backgroundColor: 'rgba(17,55,92,0.05)' }}>
+        <View className="flex-row items-center gap-3">
+          <MaterialIcons name="diversity-3" size={24} color="#11375C" />
+          <View className="flex-1">
+            <Text className="font-hanken text-muted text-sm">Círculo de cuidado de</Text>
+            <Text className="font-hanken-extrabold text-navy text-xl">{circleName}</Text>
+          </View>
         </View>
+
+        {personInfo?.birthDate ? (
+          <View className="flex-row items-center gap-3 mt-3">
+            <MaterialIcons name="cake" size={20} color="#6B7A85" />
+            <Text className="flex-1 font-hanken text-ink text-base">
+              {formatBirthDate(personInfo.birthDate)}
+              {ageFromBirthDate(personInfo.birthDate) !== null ? ` · ${ageFromBirthDate(personInfo.birthDate)} anos` : ''}
+            </Text>
+          </View>
+        ) : null}
+
+        {personInfo?.phone ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Ligar para ${circleName}, ${formatPhone(personInfo.phone)}`}
+            onPress={() => void Linking.openURL(`tel:${personInfo.phone}`)}
+            className="min-h-[48px] flex-row items-center gap-3 mt-1 active:opacity-70"
+          >
+            <MaterialIcons name="call" size={20} color="#6B7A85" />
+            <Text className="flex-1 font-hanken text-ink text-base">{formatPhone(personInfo.phone)}</Text>
+            <Text className="font-hanken-bold text-sm text-terracotta">Ligar</Text>
+          </Pressable>
+        ) : null}
+
+        {personInfo && !personInfo.birthDate && !personInfo.phone ? (
+          <Text className="font-hanken text-muted text-[15px] leading-[22px] mt-3">
+            Data de nascimento e telefone ainda não cadastrados.
+          </Text>
+        ) : null}
+
+        {personInfo?.canEdit ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Editar os dados de ${circleName}`}
+            onPress={() => setPersonFormOpen(true)}
+            className="min-h-[56px] flex-row items-center justify-center gap-2 rounded-2xl mt-4 bg-navy active:opacity-90"
+          >
+            <MaterialIcons name="edit" size={20} color="#FFFFFF" />
+            <Text className="font-hanken-bold text-base text-white">Editar dados</Text>
+          </Pressable>
+        ) : null}
       </View>
+
+      {personFormOpen && personInfo ? (
+        <PersonDataModal
+          person={{ name: circleName, birthDate: personInfo.birthDate, phone: personInfo.phone }}
+          onSave={personInfo.onSave}
+          onClose={() => setPersonFormOpen(false)}
+        />
+      ) : null}
 
       {management ? (
         <Pressable

@@ -114,19 +114,8 @@ export function countEmergencyContacts(members: CircleMemberDoc[], exceptUid?: s
   return members.filter((m) => m.uid !== exceptUid && hasPermission(m, 'emergencia')).length
 }
 
-/** Brazilian phone with area code: 10 or 11 digits. Returns the digits, or null if invalid. */
-export function normalizePhone(input: string): string | null {
-  const digits = input.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
-  return digits.length === 10 || digits.length === 11 ? digits : null
-}
-
-/** "11912345678" → "(11) 91234-5678". */
-export function formatPhone(digits: string): string {
-  const ddd = digits.slice(0, 2)
-  const rest = digits.slice(2)
-  const cut = rest.length === 9 ? 5 : 4
-  return `(${ddd}) ${rest.slice(0, cut)}-${rest.slice(cut)}`
-}
+// Phone helpers live in person-data.ts (pure, unit-tested); re-exported for existing importers.
+export { formatPhone, normalizePhone } from '@/services/person-data'
 
 /**
  * Can `member` leave by dissolving the circle? Only when nobody else is active in it (pending

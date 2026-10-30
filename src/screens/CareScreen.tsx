@@ -1,7 +1,13 @@
 import { FloatingNav } from '@/components/FloatingNav'
 import { CircleSwitcher } from '@/components/care/CircleSwitcher'
 import { Logo } from '@/components/Logo'
-import { FamilyView, type FamilyLifecycle, type FamilyManagement, type FamilySelf } from '@/components/care/FamilyView'
+import {
+  FamilyView,
+  type FamilyLifecycle,
+  type FamilyManagement,
+  type FamilyPersonInfo,
+  type FamilySelf,
+} from '@/components/care/FamilyView'
 import { InactiveBanner } from '@/components/care/InactiveBanner'
 import { HealthView } from '@/components/care/HealthView'
 import { MedicationModal } from '@/components/care/MedicationModal'
@@ -54,6 +60,7 @@ export function CareScreen({
   familyManagement,
   familySelf,
   familyLifecycle,
+  personInfo,
   circleStatus,
   access,
   circleSwitcher,
@@ -90,6 +97,8 @@ export function CareScreen({
   familyManagement?: FamilyManagement
   /** The viewer's own phone and leaving. */
   familySelf: FamilySelf
+  /** The assisted person's birth date and phone, and the "Editar dados" form. */
+  personInfo?: FamilyPersonInfo
   /** Inactivate / delete for good (managers; present only when one of them applies). */
   familyLifecycle?: FamilyLifecycle
   /** Inactive circle: banner on every tab (data kept, read-only); `onReactivate` for managers. */
@@ -267,7 +276,7 @@ export function CareScreen({
             readOnly={!access.canEditHealth}
           />
         ) : (
-          <FamilyView circleName={circleName} members={circleMembers} management={familyManagement} self={familySelf} lifecycle={familyLifecycle} />
+          <FamilyView circleName={circleName} members={circleMembers} management={familyManagement} self={familySelf} lifecycle={familyLifecycle} personInfo={personInfo} />
         )}
       </ScrollView>
 

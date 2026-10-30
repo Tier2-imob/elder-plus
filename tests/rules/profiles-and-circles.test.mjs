@@ -70,7 +70,7 @@ scenario('profiles-and-circles', async () => {
     await setDoc(doc(db, 'circles', 'oldc'), { subject: { name: 'X', uid: null }, createdBy: 'old', memberCount: 1, emergencyCount: 0 })
     await setDoc(doc(db, 'circles', 'oldc', 'members', 'old'), { name: 'O', role: 'admin', permissions: FIVE, status: 'ativo' })
   })
-  await check('conta antiga cria 2o circulo mantendo o antigo na lista', true, createCircle('old', { forSelf: false, current: ['oldc'], name: 'Y' }).commit)
+  await check('conta antiga cria 2o circulo mantendo o antigo na lista', true, createCircle('old', { forSelf: false, current: ['oldc'], name: 'Yara' }).commit)
   await check('conta antiga sai do circulo antigo', true, () => updateDoc(doc(ctx('old'), 'users', 'old'), { circleIds: arrayRemove('oldc'), circleId: deleteField() }))
 
   // ─── Convite para um 2o círculo ───
@@ -93,7 +93,14 @@ scenario('profiles-and-circles', async () => {
   await check('membro le a pessoa assistida', true, () => getDoc(doc(ctx('ana'), 'persons', c2.personId)))
   await check('quem nao e do circulo nao le a pessoa', false, () => getDoc(doc(ctx('max'), 'persons', c2.personId)))
   await check('pessoa nao ganha uid sem o vinculo do circulo', false, () => updateDoc(doc(ctx('ana'), 'persons', c2.personId), { uid: 'qualquer' }))
-  await check('gerente renomeia a pessoa', true, () => updateDoc(doc(ctx('ana'), 'persons', c2.personId), { name: 'Seu Joao' }))
+  // The name is one: the person and the circle's subject change together (see person-data.test.mjs).
+  await check('gerente renomeia a pessoa (e o circulo, juntos)', true, () => {
+    const db = ctx('ana')
+    const batch = writeBatch(db)
+    batch.update(doc(db, 'persons', c2.personId), { name: 'Seu Joao' })
+    batch.update(doc(db, 'circles', c2.circleId), { 'subject.name': 'Seu Joao' })
+    return batch.commit()
+  })
   await check('pessoa nao e criada solta (sem circulo novo)', false, () =>
     setDoc(doc(ctx('ana'), 'persons', 'solta'), { name: 'X', uid: null, circleId: c2.circleId, createdBy: 'ana', createdAt: serverTimestamp() }))
 })

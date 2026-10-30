@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -14,6 +14,8 @@ import {
 import { ConnectionErrorCard } from '@/components/ConnectionErrorCard'
 import { FloatingNav } from '@/components/FloatingNav'
 import { CircleSwitcher } from '@/components/care/CircleSwitcher'
+import { DiscardChangesModal } from '@/components/care/DiscardChanges'
+import { PersonFields, usePersonForm } from '@/components/care/PersonFields'
 import { Logo } from '@/components/Logo'
 
 /**
@@ -295,36 +297,52 @@ function CreateForm({
   canForOther,
   onCreate,
   onHaveInvite,
+  onDirtyChange,
 }: {
   /** Elder profile without a circle of their own: may be the assisted person. */
   canForSelf: boolean
   /** Family profile: may create a circle for someone they care for. */
   canForOther: boolean
   /** Rejects with a user-facing PT message on failure. */
-  onCreate: (input: { forSelf: boolean; subjectName?: string }) => Promise<void>
+  onCreate: (input: {
+    forSelf: boolean
+    subjectName?: string
+    birthDate?: string | null
+    phone?: string | null
+  }) => Promise<void>
   onHaveInvite: () => void
+  /** Whether the person's data was filled in, so leaving the screen can ask before discarding it. */
+  onDirtyChange: (dirty: boolean) => void
 }) {
   // With both profiles the user picks; with one, it's decided.
   const [forSelf, setForSelf] = useState(canForSelf && !canForOther)
   const isElder = forSelf
-  const [subjectName, setSubjectName] = useState('')
+  // Name (asked only when the circle is for someone else), birth date and phone — the last two optional.
+  const form = usePersonForm({ name: '', birthDate: '', phone: '' }, { nameRequired: !forSelf })
   const [accepted, setAccepted] = useState(false)
   const [attempted, setAttempted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | undefined>(undefined)
 
-  const nameError =
-    isElder || subjectName.trim().length >= 2 ? undefined : 'Digite o nome da pessoa assistida, com pelo menos 2 letras.'
+  useEffect(() => onDirtyChange(form.dirty), [form.dirty, onDirtyChange])
+
   const consentError = accepted ? undefined : 'Para criar o círculo, confirme a declaração acima.'
 
   async function handleCreate() {
     if (submitting) return
     setAttempted(true)
-    if (nameError || consentError) return
+    form.attempt()
+    if (!form.valid || consentError) return
     setSubmitting(true)
     setSubmitError(undefined)
     try {
-      await onCreate({ forSelf, subjectName: forSelf ? undefined : subjectName.trim() })
+      const data = form.data()
+      await onCreate({
+        forSelf,
+        subjectName: forSelf ? undefined : data.name,
+        birthDate: data.birthDate,
+        phone: data.phone,
+      })
       // Success: the circle state changes and the parent swaps this screen for Cuidados.
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'Não foi possível criar o círculo. Tente novamente.')
@@ -380,30 +398,11 @@ function CreateForm({
       <Feature icon="favorite-border" text="Medicamentos, doses e lembretes de saúde." />
       <Feature icon="lock-outline" text="Cada pessoa vê e edita só o que você permitir." />
 
+      <PersonFields form={form} showName={!isElder} />
       {!isElder ? (
-        <>
-          <Text className="font-hanken-medium text-navy text-[15px] mb-2 mt-4">Nome da pessoa assistida</Text>
-          <TextInput
-            value={subjectName}
-            onChangeText={setSubjectName}
-            placeholder="Ex: Dona Maria Silva"
-            placeholderTextColor="#6B7A85"
-            autoCapitalize="words"
-            accessibilityLabel="Nome da pessoa assistida"
-            accessibilityHint={attempted ? nameError : undefined}
-            className={`min-h-[56px] rounded-2xl border-[1.6px] ${
-              attempted && nameError ? 'border-terracotta' : 'border-hairline'
-            } bg-white px-4 font-hanken-medium text-[17px] text-ink`}
-          />
-          {attempted && nameError ? (
-            <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracotta text-sm leading-5 mt-2">
-              {nameError}
-            </Text>
-          ) : null}
-          <Text className="font-hanken text-muted text-sm leading-5 mt-2">
-            Ela não precisa ter conta no Elder+. Se tiver, você poderá vinculá-la depois.
-          </Text>
-        </>
+        <Text className="font-hanken text-muted text-sm leading-5 mt-3">
+          Ela não precisa ter conta no Elder+. Se tiver, você poderá vinculá-la depois.
+        </Text>
       ) : null}
 
       <Pressable
@@ -512,7 +511,12 @@ export function CircleSetupScreen({
   canCreateForOther?: boolean
   /** Assisted person's name, shown while pending. */
   circleName?: string
-  onCreate: (input: { forSelf: boolean; subjectName?: string }) => Promise<void>
+  onCreate: (input: {
+    forSelf: boolean
+    subjectName?: string
+    birthDate?: string | null
+    phone?: string | null
+  }) => Promise<void>
   /** Circle selector (users in more than one circle); absent while adding one. */
   circleSwitcher?: {
     circles: { id: string; name: string; inactive?: boolean }[]
@@ -534,6 +538,13 @@ export function CircleSetupScreen({
   bottomInset?: number
 }) {
   const [joining, setJoining] = useState(false)
+  // Leaving the create form with data typed in asks first ("Descartar alterações?").
+  const [formDirty, setFormDirty] = useState(false)
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null)
+  const requestLeave = (action: () => void) => {
+    if (formDirty) setPendingLeave(() => action)
+    else action()
+  }
   const [cancelBusy, setCancelBusy] = useState(false)
   const [cancelError, setCancelError] = useState<string | undefined>(undefined)
 
@@ -578,7 +589,8 @@ export function CircleSetupScreen({
                   canForSelf={canCreateForSelf}
                   canForOther={canCreateForOther}
                   onCreate={onCreate}
-                  onHaveInvite={() => setJoining(true)}
+                  onHaveInvite={() => requestLeave(() => setJoining(true))}
+                  onDirtyChange={setFormDirty}
                 />
               ) : (
                 // Elder profile that already has its own circle: only joining by invite is left.
@@ -590,7 +602,9 @@ export function CircleSetupScreen({
                   <SecondaryLink label="Tenho um convite" onPress={() => setJoining(true)} />
                 </Message>
               )}
-              {onCancelAdding ? <SecondaryLink label="Voltar para o meu círculo" onPress={onCancelAdding} /> : null}
+              {onCancelAdding ? (
+                <SecondaryLink label="Voltar para o meu círculo" onPress={() => requestLeave(onCancelAdding)} />
+              ) : null}
             </>
           ) : mode === 'pending' ? (
             <Message
@@ -630,6 +644,16 @@ export function CircleSetupScreen({
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <DiscardChangesModal
+        visible={pendingLeave !== null}
+        onKeepEditing={() => setPendingLeave(null)}
+        onDiscard={() => {
+          const action = pendingLeave
+          setPendingLeave(null)
+          setFormDirty(false)
+          action?.()
+        }}
+      />
       <FloatingNav active="care" onPress={onNavigate} bottomInset={bottomInset} />
     </View>
   )

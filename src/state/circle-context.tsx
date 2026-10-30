@@ -31,7 +31,7 @@ import {
 } from '@/services/circle-rules';
 import * as circles from '@/services/firebase/circles';
 import { migrateLegacyCareData } from '@/services/firebase/legacy-migration';
-import type { CircleDoc, CircleMemberDoc, InviteDoc } from '@/services/firebase/types';
+import type { CircleDoc, CircleMemberDoc, InviteDoc, PersonDoc } from '@/services/firebase/types';
 import * as users from '@/services/firebase/users';
 import { readCache, writeCache } from '@/services/local-cache';
 
@@ -88,7 +88,19 @@ type CircleValue = {
    * Create a circle: `forSelf` = the user is the assisted person (elder profile); otherwise around
    * `subjectName`, a managed person without an account. Throws circle/* errors for the screen.
    */
-  createCircle: (input: { forSelf: boolean; subjectName?: string }) => Promise<void>
+  createCircle: (input: {
+    forSelf: boolean
+    subjectName?: string
+    /** "YYYY-MM-DD" (optional). */
+    birthDate?: string | null
+    /** Digits with the area code (optional). */
+    phone?: string | null
+  }) => Promise<void>
+
+  /** The shown circle's assisted person (name, birth date, phone), live; null while it loads. */
+  person: PersonDoc | null
+  /** Save the assisted person's data (managers of an active circle). Throws circle/* errors. */
+  updatePerson: (data: { name: string; birthDate: string | null; phone: string | null }) => Promise<void>
 
   // ─── Convites (quem gerencia) ───
   /** Open invites (not used, not revoked, not expired), newest first. Managers only. */
@@ -295,6 +307,23 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     })
   }, [circleId, isActive])
 
+  // The assisted person's data (birth date, phone), for the Família tab and its edit form. Reset
+  // during render when the circle changes, like the other per-circle state.
+  const subjectId = circle?.subjectId ?? null
+  const [person, setPerson] = useState<PersonDoc | null>(null)
+  const [personFor, setPersonFor] = useState<string | null>(null)
+  if (personFor !== subjectId) {
+    setPersonFor(subjectId)
+    setPerson(null)
+  }
+  useEffect(() => {
+    if (!subjectId) return
+    return circles.observePerson(subjectId, setPerson, (e) => {
+      console.warn('observePerson failed', e)
+      setPerson(null)
+    })
+  }, [subjectId])
+
   // Last access, once per circle per app session.
   const touchedFor = useRef<string | null>(null)
   useEffect(() => {
@@ -345,7 +374,12 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const activeCircleCount = (circleIds ?? []).filter((id) => circleDocs[id]?.status !== 'inativo').length
 
   const createCircle = useCallback(
-    async (input: { forSelf: boolean; subjectName?: string }): Promise<void> => {
+    async (input: {
+      forSelf: boolean
+      subjectName?: string
+      birthDate?: string | null
+      phone?: string | null
+    }): Promise<void> => {
       if (!account) throw new Error('No signed-in user')
       const id = await circles.createCircle({
         uid: account.uid,
@@ -355,6 +389,8 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
         activeCircleCount,
         forSelf: input.forSelf,
         subjectName: input.subjectName,
+        birthDate: input.birthDate,
+        phone: input.phone,
         consentVersion: CIRCLE_CONSENT_VERSION,
       })
       joined(id)
@@ -470,6 +506,15 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     left(circle.id)
   }, [circle, membership, members, left])
 
+  const updatePerson = useCallback(
+    async (data: { name: string; birthDate: string | null; phone: string | null }): Promise<void> => {
+      if (!circle || !membership || !canManage(membership)) throw circleError('circle/not-allowed')
+      if (isInactive(circle)) throw circleError('circle/inactive')
+      await circles.updatePerson(circle, membership, data)
+    },
+    [circle, membership]
+  )
+
   const inactivateCircle = useCallback(async (): Promise<void> => {
     if (!circle || !membership || !canManage(membership)) throw circleError('circle/not-allowed')
     await circles.setCircleActive(circle, membership, false)
@@ -562,6 +607,8 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       })),
       activeCircleId: circleId ?? null,
       circleInactive: isInactive(circle),
+      person,
+      updatePerson,
       inactivateCircle,
       reactivateCircle,
       selectCircle,
@@ -596,6 +643,8 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       circleIds,
       circleDocs,
       circleId,
+      person,
+      updatePerson,
       inactivateCircle,
       reactivateCircle,
       selectCircle,
