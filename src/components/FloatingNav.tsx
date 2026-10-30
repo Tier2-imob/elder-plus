@@ -113,12 +113,9 @@ export function FloatingNav({
       : withTiming(activeIndex, { duration: SLIDE_MS, easing: Easing.out(Easing.cubic) })
   }, [activeIndex, reduceMotion, position])
 
-  // Computed here, not inside the worklet: calling .map with closures on the UI thread throws.
-  const slots = NAV_ITEMS.map((_, i) => i)
-  const offsets = slots.map((i) => i * itemWidth)
-
+  // Linear: the highlight is `position` items wide from the start. No arrays or closures in the worklet.
   const highlightStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: interpolate(position.value, slots, offsets) }],
+    transform: [{ translateX: position.value * itemWidth }],
   }))
 
   return (
