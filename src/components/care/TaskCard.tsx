@@ -85,7 +85,6 @@ export function TaskCard({
   onChangeCategory,
   onDelete,
   readOnly = false,
-  embedded = false,
 }: {
   task: Task
   done: boolean
@@ -98,8 +97,6 @@ export function TaskCard({
   onDelete?: () => void
   /** Viewer without `editar-rotina`: no actions, no delete, details without edits. */
   readOnly?: boolean
-  /** Drawn without its own border, margin and padding, to sit inside a card that already frames it (Explore). */
-  embedded?: boolean
 }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -131,12 +128,11 @@ export function TaskCard({
       onPress={() => setDetailsOpen(true)}
       onLongPress={canDelete ? enterDeleteMode : undefined}
       delayLongPress={450}
-      className={embedded ? 'active:opacity-90' : 'rounded-3xl border mb-4 p-5 active:opacity-90'}
-      style={
-        embedded
-          ? undefined
-          : { borderColor: done ? '#C8E6C9' : '#E4DCD3', backgroundColor: done ? '#F5FBF5' : '#FFFFFF' }
-      }
+      className="rounded-3xl border mb-4 p-5 active:opacity-90"
+      style={{
+        borderColor: done ? '#C8E6C9' : '#E4DCD3',
+        backgroundColor: done ? '#F5FBF5' : '#FFFFFF',
+      }}
     >
       {/* Linha superior: ícone da categoria + tags + detalhes */}
       <View className="flex-row items-center gap-2 mb-4">
