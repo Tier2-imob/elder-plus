@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { CIRCLE_ROLE_LABELS, type PermissionKey } from '@/components/care/types'
@@ -64,7 +63,6 @@ function leaveBlockedReason(code: ReturnType<typeof canLeave>): string | undefin
 }
 
 export default function Care() {
-  const router = useRouter()
   const insets = useSafeAreaInsets()
   const { account } = useAccount()
   const {
@@ -119,12 +117,6 @@ export default function Care() {
     !circleLoading && circle && hasPermission(membership, 'ver-saude') ? circle.id : undefined
   )
 
-  const onNavigate = (key: string) => {
-    // navigate (not replace): switches back to the mounted Explore tab; replace stacked a new
-    // Explore on every round trip and refetched its data.
-    if (key === 'explore') router.navigate('/explore')
-  }
-
   const circleSwitcher = {
     circles,
     activeCircleId,
@@ -159,7 +151,6 @@ export default function Care() {
         onAcceptInvite={inPortuguese('acceptInvite', acceptInvite)}
         // The titular can never leave, not even while pending.
         onCancelPending={membership?.role === 'titular' ? undefined : inPortuguese('cancelPending', cancelPending)}
-        onNavigate={onNavigate}
         topInset={insets.top}
         bottomInset={insets.bottom}
       />
@@ -264,7 +255,6 @@ export default function Care() {
       onCreateMedication={meds.create}
       onUpdateMedication={meds.update}
       onDeleteMedication={meds.remove}
-      onNavigate={onNavigate}
     />
   )
 }

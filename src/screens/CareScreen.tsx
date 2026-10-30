@@ -1,4 +1,3 @@
-import { FloatingNav } from '@/components/FloatingNav'
 import { CircleSwitcher } from '@/components/care/CircleSwitcher'
 import { Logo } from '@/components/Logo'
 import {
@@ -44,7 +43,6 @@ const ROUTINE_MODES: { key: RoutineMode; label: string }[] = [
 // ─── Tela principal ────────────────────────────────────────────────────────────
 
 export function CareScreen({
-  onNavigate,
   tasks,
   doneIds,
   tasksLoading = false,
@@ -78,7 +76,6 @@ export function CareScreen({
   topInset = 0,
   bottomInset = 0,
 }: {
-  onNavigate: (key: string) => void
   tasks: Task[]
   doneIds: Set<string>
   tasksLoading?: boolean
@@ -216,7 +213,7 @@ export function CareScreen({
         contentContainerStyle={{
           paddingHorizontal: 24,
           paddingTop: 8,
-          paddingBottom: bottomInset + 100,
+          paddingBottom: bottomInset + 116,
         }}
       >
         {circleStatus.inactive ? (
@@ -300,7 +297,6 @@ export function CareScreen({
         />
       ) : null}
 
-      <FloatingNav active="care" onPress={onNavigate} bottomInset={bottomInset} />
     </View>
   )
 }

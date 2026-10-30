@@ -1,5 +1,4 @@
 import { ConnectionErrorCard } from '@/components/ConnectionErrorCard'
-import { FloatingNav } from '@/components/FloatingNav'
 import { Logo } from '@/components/Logo'
 import { MapEmbed } from '@/components/MapEmbed'
 import { TaskCard } from '@/components/care/TaskCard'
@@ -60,7 +59,6 @@ export function ExploreScreen({
   bottomInset = 0,
   onSelectCategory,
   onSelectBusiness,
-  onNavigate,
   onOpenDocuments,
   onOpenAccount,
   connectionError = false,
@@ -86,7 +84,6 @@ export function ExploreScreen({
   bottomInset?: number
   onSelectCategory: (category: Category) => void
   onSelectBusiness: (item: SearchResult) => void
-  onNavigate: (key: string) => void
   onOpenDocuments?: () => void
   onOpenAccount?: () => void
   /** The circles/tasks could not be loaded (no connection): shows a message with "Tentar de novo". */
@@ -129,7 +126,7 @@ export function ExploreScreen({
     <View className="flex-1 bg-offwhite">
     <ScrollView
       className="flex-1"
-      contentContainerStyle={{ paddingTop: topInset + 20, paddingBottom: bottomInset + 100 }}
+      contentContainerStyle={{ paddingTop: topInset + 20, paddingBottom: bottomInset + 116 }}
       keyboardShouldPersistTaps="handled"
     >
       <View className="flex-row items-center justify-between px-7 mb-5">
@@ -386,7 +383,6 @@ export function ExploreScreen({
         </View>
       </View>
     </ScrollView>
-    <FloatingNav active="explore" onPress={onNavigate} bottomInset={bottomInset} />
     </View>
   )
 }

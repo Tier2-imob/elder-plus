@@ -12,7 +12,6 @@ import {
 } from 'react-native'
 
 import { ConnectionErrorCard } from '@/components/ConnectionErrorCard'
-import { FloatingNav } from '@/components/FloatingNav'
 import { CircleSwitcher } from '@/components/care/CircleSwitcher'
 import { DiscardChangesModal } from '@/components/care/DiscardChanges'
 import { PersonFields, usePersonForm } from '@/components/care/PersonFields'
@@ -500,7 +499,6 @@ export function CircleSetupScreen({
   onCancelAdding,
   onRetry,
   circleSwitcher,
-  onNavigate,
   topInset = 0,
   bottomInset = 0,
 }: {
@@ -533,7 +531,6 @@ export function CircleSetupScreen({
   onAcceptInvite: (code: string) => Promise<void>
   /** Withdraw a pending request (absent when it can't be withdrawn). */
   onCancelPending?: () => Promise<void>
-  onNavigate: (key: string) => void
   topInset?: number
   bottomInset?: number
 }) {
@@ -566,7 +563,7 @@ export function CircleSetupScreen({
         <ScrollView
           className="flex-1"
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingTop: topInset + 16, paddingHorizontal: 24, paddingBottom: bottomInset + 110 }}
+          contentContainerStyle={{ paddingTop: topInset + 16, paddingHorizontal: 24, paddingBottom: bottomInset + 126 }}
         >
           <Logo size="sm" style={{ width: 80, height: 24, marginBottom: 28 }} />
           {circleSwitcher && mode === 'pending' ? <CircleSwitcher {...circleSwitcher} /> : null}
@@ -654,7 +651,6 @@ export function CircleSetupScreen({
           action?.()
         }}
       />
-      <FloatingNav active="care" onPress={onNavigate} bottomInset={bottomInset} />
     </View>
   )
 }

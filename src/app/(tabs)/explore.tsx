@@ -64,10 +64,6 @@ export default function Explore() {
           params: { categoryId: item.categoryId, itemId: item.id },
         })
       }
-      onNavigate={(key) => {
-        // navigate (not push): switches to the already-mounted tab instead of stacking a new screen.
-        if (key === 'care') router.navigate('/care')
-      }}
     />
   )
 }
