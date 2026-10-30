@@ -54,11 +54,6 @@ function InfoRow({
 }) {
   return (
     <View accessibilityLiveRegion="polite" className="p-3.5 rounded-2xl border border-hairline bg-white mb-4">
-      {circleName ? (
-        <View className="flex-row mb-3">
-          <CircleTag name={circleName} />
-        </View>
-      ) : null}
       <View className="flex-row items-center gap-3.5">
         <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
           {loading ? (
@@ -71,6 +66,11 @@ function InfoRow({
           <Text className="font-hanken text-muted text-[15px] leading-[22px]">{text}</Text>
         </View>
       </View>
+      {circleName ? (
+        <View className="flex-row mt-3">
+          <CircleTag name={circleName} />
+        </View>
+      ) : null}
     </View>
   )
 }

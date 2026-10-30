@@ -138,12 +138,6 @@ export function TaskCard({
         backgroundColor: done ? '#F5FBF5' : '#FFFFFF',
       }}
     >
-      {circleName ? (
-        <View className="flex-row mb-3">
-          <CircleTag name={circleName} />
-        </View>
-      ) : null}
-
       {/* Linha superior: ícone da categoria + tags + detalhes */}
       <View className="flex-row items-center gap-2 mb-4">
         <View
@@ -225,6 +219,13 @@ export function TaskCard({
           <Text className="font-hanken-medium text-[13px]" style={{ color: done ? '#9fafbd' : '#16283A' }}>
             {task.assignee}
           </Text>
+        </View>
+      ) : null}
+
+      {/* Círculo da tarefa: abaixo das informações */}
+      {circleName ? (
+        <View className="flex-row mb-3">
+          <CircleTag name={circleName} />
         </View>
       ) : null}
 

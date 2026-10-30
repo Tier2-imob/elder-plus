@@ -10,11 +10,10 @@ export function CircleTag({ name }: { name: string }) {
     <View
       accessible
       accessibilityLabel={`Círculo de ${name}`}
-      className="self-start flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
-      style={{ backgroundColor: 'rgba(17,55,92,0.08)' }}
+      className="self-start flex-row items-center gap-1.5 rounded-full px-3 py-1.5 bg-navy"
     >
-      <MaterialIcons name="diversity-3" size={16} color="#11375C" />
-      <Text numberOfLines={1} className="font-hanken-bold text-navy text-sm">
+      <MaterialIcons name="diversity-3" size={16} color="#FFFFFF" />
+      <Text numberOfLines={1} className="font-hanken-bold text-white text-sm">
         {name}
       </Text>
     </View>
