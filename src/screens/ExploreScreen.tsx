@@ -265,7 +265,7 @@ export function ExploreScreen({
           <View className={!taskLoading && nearestTask ? 'mb-3' : 'mb-7'}>
             <Text className="font-hanken-bold text-navy text-3xl mb-2">Próxima tarefa</Text>
             {taskLoading ? (
-              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
+              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-navy bg-white">
                 <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
                   <MaterialIcons name="schedule" size={22} color="#11375C" />
                 </View>
@@ -300,10 +300,11 @@ export function ExploreScreen({
                 }
                 onDelete={onDeleteTask ? () => onDeleteTask(nearestTask.id) : undefined}
                 readOnly={taskReadOnly}
+                borderColor="#11375C"
               />
               </>
             ) : (
-              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
+              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-navy bg-white">
                 <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
                   <MaterialIcons name="event-available" size={22} color="#11375C" />
                 </View>
@@ -326,7 +327,7 @@ export function ExploreScreen({
               accessibilityRole="button"
               accessibilityLabel={category.label}
               onPress={() => onSelectCategory(category)}
-              className="w-[48%] items-center rounded-2xl border border-hairline bg-white px-3 py-5 active:opacity-70"
+              className="w-[48%] items-center rounded-2xl border border-navy bg-white px-3 py-5 active:opacity-70"
             >
               <View className="w-12 h-12 rounded-2xl items-center justify-center bg-navy/10 mb-2.5">
                 <MaterialIcons name={category.icon} size={22} color="#11375C" />

@@ -85,6 +85,7 @@ export function TaskCard({
   onChangeCategory,
   onDelete,
   readOnly = false,
+  borderColor,
 }: {
   task: Task
   done: boolean
@@ -97,6 +98,8 @@ export function TaskCard({
   onDelete?: () => void
   /** Viewer without `editar-rotina`: no actions, no delete, details without edits. */
   readOnly?: boolean
+  /** Overrides the card's border color (Explore uses navy). */
+  borderColor?: string
 }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -130,7 +133,7 @@ export function TaskCard({
       delayLongPress={450}
       className="rounded-3xl border mb-4 p-5 active:opacity-90"
       style={{
-        borderColor: done ? '#C8E6C9' : '#E4DCD3',
+        borderColor: borderColor ?? (done ? '#C8E6C9' : '#E4DCD3'),
         backgroundColor: done ? '#F5FBF5' : '#FFFFFF',
       }}
     >
