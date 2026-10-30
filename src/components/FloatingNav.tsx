@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useEffect } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View, useWindowDimensions } from 'react-native'
 import Animated, {
   Easing,
   Extrapolation,
@@ -27,24 +27,25 @@ const NAV_ITEMS: NavItem[] = [
 
 const PADDING = 6
 const ITEM_HEIGHT = 56 // the touch-target minimum of the design system
+const BASE_ITEM_WIDTH = 140
 const SLIDE_MS = 280
 const INACTIVE_OPACITY = 0.7 // white at 70% on navy still passes 4.5:1 text contrast
 
 function NavButton({
   item,
   index,
+  width,
   position,
   active,
   onPress,
-  onLayout,
 }: {
   item: NavItem
   index: number
-  /** Animated index of the selected item (0 → 1 while the indicator slides). */
+  width: number
+  /** Animated index of the selected item (0 → 1 while the highlight slides). */
   position: SharedValue<number>
   active: boolean
   onPress: () => void
-  onLayout: (x: number, width: number) => void
 }) {
   // The label and icon fade between "selected" (full white) and "not selected" (dimmed white).
   const style = useAnimatedStyle(() => ({
@@ -62,14 +63,15 @@ function NavButton({
       accessibilityState={{ selected: active }}
       accessibilityLabel={item.label}
       onPress={onPress}
-      onLayout={(e) => onLayout(e.nativeEvent.layout.x, e.nativeEvent.layout.width)}
-      className="flex-row items-center justify-center rounded-full active:opacity-80"
-      style={{ height: ITEM_HEIGHT, paddingHorizontal: 20 }}
+      className="items-center justify-center rounded-full active:opacity-80"
+      style={{ width, height: ITEM_HEIGHT }}
     >
       {/* Inline styles only on Animated views: with a className NativeWind can drop the animated style. */}
       <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8 }, style]}>
         <MaterialIcons name={item.icon} size={22} color="#FFFFFF" />
-        <Text className="font-hanken-bold text-white text-[15px]">{item.label}</Text>
+        <Text numberOfLines={1} className="font-hanken-bold text-white text-[15px]">
+          {item.label}
+        </Text>
       </Animated.View>
     </Pressable>
   )
@@ -80,6 +82,9 @@ function NavButton({
  * sits on a terracotta pill that slides smoothly to the new selection (and the labels fade between
  * selected and not). Rendered once by the tabs layout, so it persists across screens and the
  * transition is actually seen. With "reduce motion" on, the change is immediate.
+ *
+ * All items have the same width, so the highlight needs no measuring: it is a fixed-size pill that
+ * only moves (a transform animation), and the layout is the same on every frame.
  */
 export function FloatingNav({
   active,
@@ -91,12 +96,15 @@ export function FloatingNav({
   bottomInset?: number
 }) {
   const reduceMotion = useReducedMotion()
+  const { fontScale, width: screenWidth } = useWindowDimensions()
   const activeIndex = Math.max(0, NAV_ITEMS.findIndex((item) => item.key === active))
 
+  // Wide enough for the label at the user's font size, but never wider than half the screen.
+  const itemWidth = Math.round(
+    Math.min(BASE_ITEM_WIDTH * Math.max(1, fontScale), (screenWidth - 32 - PADDING * 2) / NAV_ITEMS.length)
+  )
+
   const position = useSharedValue(activeIndex)
-  // Where each item sits inside the pill (from onLayout), so the indicator can slide between them.
-  const xs = useSharedValue<number[]>(NAV_ITEMS.map(() => 0))
-  const widths = useSharedValue<number[]>(NAV_ITEMS.map(() => 0))
 
   useEffect(() => {
     position.value = reduceMotion
@@ -104,21 +112,9 @@ export function FloatingNav({
       : withTiming(activeIndex, { duration: SLIDE_MS, easing: Easing.out(Easing.cubic) })
   }, [activeIndex, reduceMotion, position])
 
-  const indicatorStyle = useAnimatedStyle(() => ({
-    // Hidden until the items have been measured, so it never flashes at the wrong place.
-    opacity: widths.value[0] > 0 ? 1 : 0,
-    width: interpolate(position.value, [0, 1], [widths.value[0], widths.value[1]]),
-    transform: [{ translateX: interpolate(position.value, [0, 1], [xs.value[0], xs.value[1]]) }],
+  const highlightStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: interpolate(position.value, [0, 1], [0, itemWidth]) }],
   }))
-
-  const measure = (index: number, x: number, width: number) => {
-    const nextXs = [...xs.get()]
-    const nextWidths = [...widths.get()]
-    nextXs[index] = x
-    nextWidths[index] = width
-    xs.set(nextXs)
-    widths.set(nextWidths)
-  }
 
   return (
     <View
@@ -138,19 +134,20 @@ export function FloatingNav({
           elevation: 10,
         }}
       >
-        {/* The terracotta highlight: slides to the selected item (inline styles only — see NavButton). */}
+        {/* The terracotta highlight: a fixed-size pill that slides to the selected item. */}
         <Animated.View
           pointerEvents="none"
           style={[
             {
               position: 'absolute',
               top: PADDING,
-              left: 0,
+              left: PADDING,
+              width: itemWidth,
               height: ITEM_HEIGHT,
               borderRadius: ITEM_HEIGHT / 2,
               backgroundColor: '#DD7C54',
             },
-            indicatorStyle,
+            highlightStyle,
           ]}
         />
         {NAV_ITEMS.map((item, index) => (
@@ -158,10 +155,10 @@ export function FloatingNav({
             key={item.key}
             item={item}
             index={index}
+            width={itemWidth}
             position={position}
             active={item.key === active}
             onPress={() => onPress(item.key)}
-            onLayout={(x, width) => measure(index, x, width)}
           />
         ))}
       </View>

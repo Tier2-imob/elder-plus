@@ -1,6 +1,7 @@
 import { ConnectionErrorCard } from '@/components/ConnectionErrorCard'
 import { Logo } from '@/components/Logo'
 import { MapEmbed } from '@/components/MapEmbed'
+import { CircleTag } from '@/components/care/CircleTag'
 import { TaskCard } from '@/components/care/TaskCard'
 import type { NextTaskEntry, TaskCategory } from '@/components/care/types'
 import { CATEGORY_DATA } from '@/data/discover-data'
@@ -36,46 +37,40 @@ const PATROCINADOS: SearchResult[] = [
   { ...CATEGORY_DATA.lazer.items[0], categoryId: 'lazer' },
 ]
 
-/** A row of the "next tasks" section that is not a task: loading, nothing pending, or an error. */
+/**
+ * A card of the "next tasks" section that is not a task: loading, nothing pending, or an error.
+ * With `circleName` it carries the circle's tag inside, like the task cards do.
+ */
 function InfoRow({
   icon,
   text,
   loading = false,
+  circleName,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap
   text: string
   loading?: boolean
+  circleName?: string
 }) {
   return (
-    <View
-      accessibilityLiveRegion="polite"
-      className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white mb-4"
-    >
-      <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
-        {loading ? (
-          <ActivityIndicator size="small" color="#11375C" />
-        ) : (
-          <MaterialIcons name={icon} size={22} color="#11375C" />
-        )}
+    <View accessibilityLiveRegion="polite" className="p-3.5 rounded-2xl border border-hairline bg-white mb-4">
+      {circleName ? (
+        <View className="flex-row mb-3">
+          <CircleTag name={circleName} />
+        </View>
+      ) : null}
+      <View className="flex-row items-center gap-3.5">
+        <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
+          {loading ? (
+            <ActivityIndicator size="small" color="#11375C" />
+          ) : (
+            <MaterialIcons name={icon} size={22} color="#11375C" />
+          )}
+        </View>
+        <View className="flex-1">
+          <Text className="font-hanken text-muted text-[15px] leading-[22px]">{text}</Text>
+        </View>
       </View>
-      <View className="flex-1">
-        <Text className="font-hanken text-muted text-[15px] leading-[22px]">{text}</Text>
-      </View>
-    </View>
-  )
-}
-
-/** The tag that says which circle (whose care) a task belongs to. */
-function CircleTag({ name }: { name: string }) {
-  return (
-    <View
-      accessible
-      accessibilityLabel={`Círculo de ${name}`}
-      className="self-start flex-row items-center gap-1.5 rounded-full px-3 py-1.5 mb-2"
-      style={{ backgroundColor: 'rgba(17,55,92,0.08)' }}
-    >
-      <MaterialIcons name="diversity-3" size={16} color="#11375C" />
-      <Text className="font-hanken-bold text-navy text-sm">{name}</Text>
     </View>
   )
 }
@@ -108,6 +103,7 @@ function NextTaskCard({
       }
       onDelete={onDeleteTask ? () => onDeleteTask(entry.circleId, task.id) : undefined}
       readOnly={entry.readOnly}
+      circleName={entry.circleName}
     />
   )
 }
@@ -341,11 +337,14 @@ export function ExploreScreen({
             ) : (
               nextTasks.map((entry) => (
                 <View key={entry.circleId}>
-                  <CircleTag name={entry.circleName} />
                   {entry.loading ? (
-                    <InfoRow icon="schedule" text="Carregando as tarefas…" loading />
+                    <InfoRow icon="schedule" text="Carregando as tarefas…" loading circleName={entry.circleName} />
                   ) : entry.error ? (
-                    <InfoRow icon="cloud-off" text="Não foi possível carregar as tarefas deste círculo." />
+                    <InfoRow
+                      icon="cloud-off"
+                      text="Não foi possível carregar as tarefas deste círculo."
+                      circleName={entry.circleName}
+                    />
                   ) : entry.task ? (
                     <NextTaskCard
                       entry={entry}
@@ -357,7 +356,7 @@ export function ExploreScreen({
                       onDeleteTask={onDeleteTask}
                     />
                   ) : (
-                    <InfoRow icon="event-available" text="Nenhuma tarefa pendente" />
+                    <InfoRow icon="event-available" text="Nenhuma tarefa pendente" circleName={entry.circleName} />
                   )}
                 </View>
               ))

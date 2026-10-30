@@ -2,6 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useRef, useState } from 'react'
 import { Modal, Pressable, Text, View } from 'react-native'
 
+import { CircleTag } from './CircleTag'
 import { TaskDetailsModal } from './TaskDetailsModal'
 import { GhostButton, MemberOptions, PickerModal, TimeOptions } from './TaskPickers'
 import {
@@ -85,6 +86,7 @@ export function TaskCard({
   onChangeCategory,
   onDelete,
   readOnly = false,
+  circleName,
 }: {
   task: Task
   done: boolean
@@ -97,6 +99,8 @@ export function TaskCard({
   onDelete?: () => void
   /** Viewer without `editar-rotina`: no actions, no delete, details without edits. */
   readOnly?: boolean
+  /** Shows a tag with the circle the task belongs to (Explore, where tasks of several circles sit together). */
+  circleName?: string
 }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -134,6 +138,12 @@ export function TaskCard({
         backgroundColor: done ? '#F5FBF5' : '#FFFFFF',
       }}
     >
+      {circleName ? (
+        <View className="flex-row mb-3">
+          <CircleTag name={circleName} />
+        </View>
+      ) : null}
+
       {/* Linha superior: ícone da categoria + tags + detalhes */}
       <View className="flex-row items-center gap-2 mb-4">
         <View
