@@ -188,6 +188,9 @@ export default function Care() {
       personInfo={{
         birthDate: person?.birthDate ?? null,
         phone: person?.phone ?? null,
+        medications: hasPermission(membership, 'ver-saude')
+          ? meds.medications.map((m) => ({ id: m.id, name: m.name, dose: m.dose, times: m.times }))
+          : null,
         // Only a manager of an active circle edits the person's data.
         canEdit: canManage(membership) && !circleInactive,
         onSave: inPortuguese('updatePerson', updatePerson),

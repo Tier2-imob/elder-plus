@@ -45,6 +45,8 @@ export type FamilyManagement = {
 export type FamilyPersonInfo = {
   birthDate: string | null
   phone: string | null
+  /** Medications in use, for the quick view; null when the viewer can't see health data. */
+  medications?: { id: string; name: string; dose: string; times: string[] }[] | null
   /** A manager of an active circle: shows "Editar dados". */
   canEdit: boolean
   /** Rejects with a user-facing PT message. */
@@ -425,6 +427,10 @@ export function FamilyView({
       Number(a.permissions.includes('emergencia'))
   )
 
+  const emergencyContacts = members.filter(
+    (m) => m.permissions.includes('emergencia') && m.phone && !m.isSelf
+  )
+
   return (
     <View>
       {/* A pessoa assistida: nome, nascimento, telefone e "Editar dados" */}
@@ -458,6 +464,48 @@ export function FamilyView({
             <Text className="flex-1 font-hanken text-ink text-base">{formatPhone(personInfo.phone)}</Text>
             <Text className="font-hanken-bold text-sm text-terracotta">Ligar</Text>
           </Pressable>
+        ) : null}
+
+        {/* Ficha rápida: contatos de emergência (ligar) e medicamentos em uso, tudo à vista. */}
+        {emergencyContacts.length ? (
+          <View className="mt-4">
+            <Text className="font-hanken-bold text-navy text-base mb-2">Contatos de emergência</Text>
+            {emergencyContacts.map((contact) => (
+              <Pressable
+                key={contact.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Ligar para ${contact.name}, ${formatPhone(contact.phone ?? '')}`}
+                onPress={() => void Linking.openURL(`tel:${contact.phone}`)}
+                className="min-h-[56px] flex-row items-center gap-3 rounded-2xl px-4 mb-2 bg-white active:opacity-70"
+              >
+                <MaterialIcons name="call" size={20} color="#C0392B" />
+                <View className="flex-1">
+                  <Text className="font-hanken-bold text-navy text-base">{contact.name}</Text>
+                  <Text className="font-hanken text-muted text-sm">{formatPhone(contact.phone ?? '')}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        {personInfo?.medications ? (
+          <View className="mt-4">
+            <Text className="font-hanken-bold text-navy text-base mb-2">Medicamentos em uso</Text>
+            {personInfo.medications.length ? (
+              personInfo.medications.map((med) => (
+                <View key={med.id} className="flex-row items-center gap-3 mb-2">
+                  <MaterialIcons name="medication" size={20} color="#DD7C54" />
+                  <Text className="flex-1 font-hanken text-ink text-[15px] leading-[22px]">
+                    <Text className="font-hanken-bold">{med.name}</Text>
+                    {med.dose ? ` · ${med.dose}` : ''}
+                    {med.times.length ? ` · ${med.times.join(', ')}` : ''}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text className="font-hanken text-muted text-[15px]">Nenhum medicamento cadastrado.</Text>
+            )}
+          </View>
         ) : null}
 
         {personInfo && !personInfo.birthDate && !personInfo.phone ? (
