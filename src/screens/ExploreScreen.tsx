@@ -36,6 +36,15 @@ const PATROCINADOS: SearchResult[] = [
   { ...CATEGORY_DATA.lazer.items[0], categoryId: 'lazer' },
 ]
 
+/** Cards without a colored border: just a minimal shadow. */
+const SOFT_SHADOW = {
+  shadowColor: '#11375C',
+  shadowOpacity: 0.08,
+  shadowRadius: 4,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+} as const
+
 function distanceLabel(distance: number) {
   return distance >= 1000
     ? `${(distance / 1000).toFixed(1).replace('.', ',')} km`
@@ -265,7 +274,7 @@ export function ExploreScreen({
           <View className={!taskLoading && nearestTask ? 'mb-3' : 'mb-7'}>
             <Text className="font-hanken-bold text-navy text-3xl mb-2">Próxima tarefa</Text>
             {taskLoading ? (
-              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-navy bg-white">
+              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl bg-white" style={SOFT_SHADOW}>
                 <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
                   <MaterialIcons name="schedule" size={22} color="#11375C" />
                 </View>
@@ -300,11 +309,11 @@ export function ExploreScreen({
                 }
                 onDelete={onDeleteTask ? () => onDeleteTask(nearestTask.id) : undefined}
                 readOnly={taskReadOnly}
-                borderColor="#11375C"
+                softShadow
               />
               </>
             ) : (
-              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-navy bg-white">
+              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl bg-white" style={SOFT_SHADOW}>
                 <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
                   <MaterialIcons name="event-available" size={22} color="#11375C" />
                 </View>
@@ -327,7 +336,8 @@ export function ExploreScreen({
               accessibilityRole="button"
               accessibilityLabel={category.label}
               onPress={() => onSelectCategory(category)}
-              className="w-[48%] items-center rounded-2xl border border-navy bg-white px-3 py-5 active:opacity-70"
+              className="w-[48%] items-center rounded-2xl bg-white px-3 py-5 active:opacity-70"
+              style={SOFT_SHADOW}
             >
               <View className="w-12 h-12 rounded-2xl items-center justify-center bg-navy/10 mb-2.5">
                 <MaterialIcons name={category.icon} size={22} color="#11375C" />
