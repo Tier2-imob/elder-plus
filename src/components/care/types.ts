@@ -84,6 +84,24 @@ export const WEEK_DAYS = [
 
 export const TODAY_KEY = 'wed'
 
+/** One circle's entry in the Explore "next tasks" section. */
+export type NextTaskEntry = {
+  circleId: string
+  /** The assisted person's name, shown as the circle tag. */
+  circleName: string
+  /** Still waiting for this circle's tasks. */
+  loading: boolean
+  /** The circle's tasks could not be read (e.g. no connection). */
+  error: boolean
+  /** The circle's next pending task, or null when none is pending. */
+  task: Task | null
+  done: boolean
+  /** Circle members who can be assigned the task. */
+  members: FamilyMember[]
+  /** The viewer can see but not edit this circle's routine. */
+  readOnly: boolean
+}
+
 // ─── Saúde ─────────────────────────────────────────────────────────────────────
 
 export type MedicationDoseState = 'tomou' | 'nao-tomou' | 'atrasou'

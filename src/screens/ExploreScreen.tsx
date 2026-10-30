@@ -2,12 +2,12 @@ import { ConnectionErrorCard } from '@/components/ConnectionErrorCard'
 import { Logo } from '@/components/Logo'
 import { MapEmbed } from '@/components/MapEmbed'
 import { TaskCard } from '@/components/care/TaskCard'
-import type { FamilyMember, Task, TaskCategory } from '@/components/care/types'
+import type { NextTaskEntry, TaskCategory } from '@/components/care/types'
 import { CATEGORY_DATA } from '@/data/discover-data'
 import type { ServiceItem } from '@/screens/DiscoverScreen'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useMemo, useState } from 'react'
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 
 type Category = {
   id: string
@@ -36,6 +36,82 @@ const PATROCINADOS: SearchResult[] = [
   { ...CATEGORY_DATA.lazer.items[0], categoryId: 'lazer' },
 ]
 
+/** A row of the "next tasks" section that is not a task: loading, nothing pending, or an error. */
+function InfoRow({
+  icon,
+  text,
+  loading = false,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap
+  text: string
+  loading?: boolean
+}) {
+  return (
+    <View
+      accessibilityLiveRegion="polite"
+      className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white mb-4"
+    >
+      <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
+        {loading ? (
+          <ActivityIndicator size="small" color="#11375C" />
+        ) : (
+          <MaterialIcons name={icon} size={22} color="#11375C" />
+        )}
+      </View>
+      <View className="flex-1">
+        <Text className="font-hanken text-muted text-[15px] leading-[22px]">{text}</Text>
+      </View>
+    </View>
+  )
+}
+
+/** The tag that says which circle (whose care) a task belongs to. */
+function CircleTag({ name }: { name: string }) {
+  return (
+    <View
+      accessible
+      accessibilityLabel={`Círculo de ${name}`}
+      className="self-start flex-row items-center gap-1.5 rounded-full px-3 py-1.5 mb-2"
+      style={{ backgroundColor: 'rgba(17,55,92,0.08)' }}
+    >
+      <MaterialIcons name="diversity-3" size={16} color="#11375C" />
+      <Text className="font-hanken-bold text-navy text-sm">{name}</Text>
+    </View>
+  )
+}
+
+type NextTaskHandlers = Pick<
+  Parameters<typeof ExploreScreen>[0],
+  'onToggleTaskDone' | 'onRescheduleTask' | 'onAssignTask' | 'onChangeTaskCategory' | 'onDeleteTask'
+>
+
+// Same card as in Cuidados (concluir, adiar, atribuir, categoria, excluir), acting on this entry's circle.
+function NextTaskCard({
+  entry,
+  task,
+  onToggleTaskDone,
+  onRescheduleTask,
+  onAssignTask,
+  onChangeTaskCategory,
+  onDeleteTask,
+}: NextTaskHandlers & { entry: NextTaskEntry; task: NonNullable<NextTaskEntry['task']> }) {
+  return (
+    <TaskCard
+      task={task}
+      done={entry.done}
+      members={entry.members}
+      onToggleDone={() => onToggleTaskDone?.(entry.circleId, task.id)}
+      onReschedule={(time) => onRescheduleTask?.(entry.circleId, task.id, time)}
+      onAssign={(assigneeId) => onAssignTask?.(entry.circleId, task.id, assigneeId)}
+      onChangeCategory={
+        onChangeTaskCategory ? (category) => onChangeTaskCategory(entry.circleId, task.id, category) : undefined
+      }
+      onDelete={onDeleteTask ? () => onDeleteTask(entry.circleId, task.id) : undefined}
+      readOnly={entry.readOnly}
+    />
+  )
+}
+
 function distanceLabel(distance: number) {
   return distance >= 1000
     ? `${(distance / 1000).toFixed(1).replace('.', ',')} km`
@@ -44,17 +120,14 @@ function distanceLabel(distance: number) {
 
 export function ExploreScreen({
   name,
-  showNextTask = false,
-  nearestTask = null,
-  nearestTaskDone = false,
-  taskLoading = false,
-  familyMembers = [],
+  showNextTasks = false,
+  nextTasksLoading = false,
+  nextTasks = [],
   onToggleTaskDone,
   onRescheduleTask,
   onAssignTask,
   onChangeTaskCategory,
   onDeleteTask,
-  taskReadOnly = false,
   topInset = 0,
   bottomInset = 0,
   onSelectCategory,
@@ -68,18 +141,17 @@ export function ExploreScreen({
   onEnableLocation,
 }: {
   name?: string
-  showNextTask?: boolean
-  nearestTask?: Task | null
-  nearestTaskDone?: boolean
-  taskLoading?: boolean
-  familyMembers?: FamilyMember[]
-  onToggleTaskDone?: (taskId: string) => void
-  onRescheduleTask?: (taskId: string, time: string) => void
-  onAssignTask?: (taskId: string, assignee: string) => void
-  onChangeTaskCategory?: (taskId: string, category: TaskCategory) => void
-  onDeleteTask?: (taskId: string) => void
-  /** Viewer can see but not edit the routine. */
-  taskReadOnly?: boolean
+  /** Show the "next tasks" section: the user is in a circle, or the circles are still loading. */
+  showNextTasks?: boolean
+  /** The circles are not known yet: the section is there, saying it is loading. */
+  nextTasksLoading?: boolean
+  /** One entry per circle the user takes part in, each with that circle's next pending task. */
+  nextTasks?: NextTaskEntry[]
+  onToggleTaskDone?: (circleId: string, taskId: string) => void
+  onRescheduleTask?: (circleId: string, taskId: string, time: string) => void
+  onAssignTask?: (circleId: string, taskId: string, assigneeId: string) => void
+  onChangeTaskCategory?: (circleId: string, taskId: string, category: TaskCategory) => void
+  onDeleteTask?: (circleId: string, taskId: string) => void
   topInset?: number
   bottomInset?: number
   onSelectCategory: (category: Category) => void
@@ -249,7 +321,8 @@ export function ExploreScreen({
           )}
         </View>
 
-        {/* Próxima tarefa — só quando há usuário logado */}
+        {/* Próximas tarefas — a próxima de cada círculo do usuário. A seção aparece logo ao entrar e
+            diz que está carregando, em vez de surgir só quando os dados chegam. */}
         {connectionError && onRetry ? (
           <View className="mb-7">
             <ConnectionErrorCard
@@ -257,43 +330,37 @@ export function ExploreScreen({
               onRetry={onRetry}
             />
           </View>
-        ) : showNextTask ? (
-          // TaskCard carries its own mb-4, so the section trims its margin to keep the same 28px gap.
-          <View className={!taskLoading && nearestTask ? 'mb-3' : 'mb-7'}>
-            <Text className="font-hanken-bold text-navy text-3xl mb-2">Próxima tarefa</Text>
-            {taskLoading ? (
-              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
-                <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
-                  <MaterialIcons name="schedule" size={22} color="#11375C" />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-hanken text-muted text-[13px]">Carregando…</Text>
-                </View>
-              </View>
-            ) : nearestTask ? (
-              // Mesmo card da tela Cuidados (formato e ações: concluir, adiar, atribuir).
-              <TaskCard
-                task={nearestTask}
-                done={nearestTaskDone}
-                members={familyMembers}
-                onToggleDone={() => onToggleTaskDone?.(nearestTask.id)}
-                onReschedule={(time) => onRescheduleTask?.(nearestTask.id, time)}
-                onAssign={(assignee) => onAssignTask?.(nearestTask.id, assignee)}
-                onChangeCategory={
-                  onChangeTaskCategory ? (category) => onChangeTaskCategory(nearestTask.id, category) : undefined
-                }
-                onDelete={onDeleteTask ? () => onDeleteTask(nearestTask.id) : undefined}
-                readOnly={taskReadOnly}
-              />
+        ) : showNextTasks ? (
+          // Each card/row carries its own bottom margin (16px), so the section adds 12px for the usual 28px gap.
+          <View className="mb-3">
+            <Text accessibilityRole="header" className="font-hanken-bold text-navy text-3xl mb-2">
+              {nextTasks.length > 1 ? 'Próximas tarefas' : 'Próxima tarefa'}
+            </Text>
+            {nextTasksLoading ? (
+              <InfoRow icon="schedule" text="Carregando suas tarefas…" loading />
             ) : (
-              <View className="flex-row items-center gap-3.5 p-3.5 rounded-2xl border border-hairline bg-white">
-                <View className="w-[46px] h-[46px] rounded-2xl items-center justify-center bg-navy/10">
-                  <MaterialIcons name="event-available" size={22} color="#11375C" />
+              nextTasks.map((entry) => (
+                <View key={entry.circleId}>
+                  <CircleTag name={entry.circleName} />
+                  {entry.loading ? (
+                    <InfoRow icon="schedule" text="Carregando as tarefas…" loading />
+                  ) : entry.error ? (
+                    <InfoRow icon="cloud-off" text="Não foi possível carregar as tarefas deste círculo." />
+                  ) : entry.task ? (
+                    <NextTaskCard
+                      entry={entry}
+                      task={entry.task}
+                      onToggleTaskDone={onToggleTaskDone}
+                      onRescheduleTask={onRescheduleTask}
+                      onAssignTask={onAssignTask}
+                      onChangeTaskCategory={onChangeTaskCategory}
+                      onDeleteTask={onDeleteTask}
+                    />
+                  ) : (
+                    <InfoRow icon="event-available" text="Nenhuma tarefa pendente" />
+                  )}
                 </View>
-                <View className="flex-1">
-                  <Text className="font-hanken text-muted text-[13px]">Nenhuma tarefa pendente</Text>
-                </View>
-              </View>
+              ))
             )}
           </View>
         ) : null}

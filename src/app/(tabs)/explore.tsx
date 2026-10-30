@@ -1,45 +1,34 @@
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useNearestTask } from '@/hooks/useNearestTask'
+import { useNextTasks } from '@/hooks/useNextTasks'
 import { useUserLocation } from '@/hooks/useUserLocation'
 import { ExploreScreen } from '@/screens/ExploreScreen'
-import { canEditCircleData, hasPermission, isAssignable } from '@/services/circle-rules'
 import { useAccount } from '@/state/account-context'
-import { toFamilyMember, useCircle } from '@/state/circle-context'
+import { useCircle } from '@/state/circle-context'
 
 export default function Explore() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { account } = useAccount()
-  const {
-    task: nearestTask,
-    done: nearestTaskDone,
-    loading: taskLoading,
-    toggleDone,
-    reschedule,
-    assign,
-    changeCategory,
-    remove,
-  } = useNearestTask(account?.uid)
-  const { circle, membership, members, circleLoadError, retryCircle } = useCircle()
+  const { circleLoading, circleLoadError, retryCircle, circles } = useCircle()
+  // The next task of every circle the user takes part in.
+  const next = useNextTasks(account?.uid, circles)
   const location = useUserLocation()
 
   return (
     <ExploreScreen
       name={account?.name}
-      // The card needs a circle the viewer can read the routine of.
-      showNextTask={hasPermission(membership, 'ver-rotina')}
-      taskReadOnly={!canEditCircleData(membership, circle, 'editar-rotina')}
-      nearestTask={nearestTask}
-      nearestTaskDone={nearestTaskDone}
-      taskLoading={taskLoading}
-      familyMembers={members.filter(isAssignable).map((m) => toFamilyMember(m, membership))}
-      onToggleTaskDone={toggleDone}
-      onRescheduleTask={reschedule}
-      onAssignTask={assign}
-      onChangeTaskCategory={changeCategory}
-      onDeleteTask={remove}
+      // The section is there from the first frame: while the circles load it says "carregando"
+      // (instead of appearing late, or claiming there is no task).
+      showNextTasks={circleLoading || next.entries.length > 0}
+      nextTasksLoading={circleLoading}
+      nextTasks={next.entries}
+      onToggleTaskDone={next.toggleDone}
+      onRescheduleTask={next.reschedule}
+      onAssignTask={next.assign}
+      onChangeTaskCategory={next.changeCategory}
+      onDeleteTask={next.remove}
       mapCenter={location.coords}
       locationStatus={location.status}
       onEnableLocation={location.enable}
