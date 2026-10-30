@@ -81,6 +81,8 @@ export default function Care() {
   } = useCareTasks()
   const {
     circleLoading,
+    circleLoadError,
+    retryCircle,
     circles,
     activeCircleId,
     selectCircle,
@@ -134,7 +136,9 @@ export default function Care() {
     const mode: CircleSetupMode =
       isPartnerOnly
         ? 'partner'
-        : circleLoading
+        : circleLoadError
+          ? 'error'
+          : circleLoading
           ? 'loading'
           : membership?.status === 'pendente'
             ? 'pending'
@@ -142,6 +146,7 @@ export default function Care() {
     return (
       <CircleSetupScreen
         mode={mode}
+        onRetry={retryCircle}
         canCreateForSelf={canCreateForSelf}
         canCreateForOther={canCreateForOther}
         onCancelAdding={addingCircle && circles.length > 0 ? cancelAddingCircle : undefined}

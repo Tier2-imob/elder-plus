@@ -61,6 +61,8 @@
     "migrate:dev": "node scripts/migrate.mjs --env dev",
     "migrate:hml": "node scripts/migrate.mjs --env hml",
     "rules:hml": "firebase deploy --only firestore:rules --project hml",
+    "test": "npm run test:unit && npm run test:rules",
+    "test:unit": "node --test tests/unit/*.test.mjs",
     "test:rules": "node tests/run-rules-tests.mjs"
   },
   "private": true

@@ -1,3 +1,4 @@
+import { ConnectionErrorCard } from '@/components/ConnectionErrorCard'
 import { FloatingNav } from '@/components/FloatingNav'
 import { Logo } from '@/components/Logo'
 import { MapEmbed } from '@/components/MapEmbed'
@@ -62,6 +63,8 @@ export function ExploreScreen({
   onNavigate,
   onOpenDocuments,
   onOpenAccount,
+  connectionError = false,
+  onRetry,
   mapCenter = null,
   locationStatus = 'ready',
   onEnableLocation,
@@ -86,6 +89,9 @@ export function ExploreScreen({
   onNavigate: (key: string) => void
   onOpenDocuments?: () => void
   onOpenAccount?: () => void
+  /** The circles/tasks could not be loaded (no connection): shows a message with "Tentar de novo". */
+  connectionError?: boolean
+  onRetry?: () => void
   /** User's approximate position; the map centres on it when present. */
   mapCenter?: { latitude: number; longitude: number } | null
   /** `unsupported` (build without the location module) just shows the map without centring. */
@@ -247,7 +253,14 @@ export function ExploreScreen({
         </View>
 
         {/* Próxima tarefa — só quando há usuário logado */}
-        {showNextTask ? (
+        {connectionError && onRetry ? (
+          <View className="mb-7">
+            <ConnectionErrorCard
+              message="Não foi possível carregar suas tarefas e seus círculos. Verifique sua conexão com a internet e tente de novo."
+              onRetry={onRetry}
+            />
+          </View>
+        ) : showNextTask ? (
           // TaskCard carries its own mb-4, so the section trims its margin to keep the same 28px gap.
           <View className={!taskLoading && nearestTask ? 'mb-3' : 'mb-7'}>
             <Text className="font-hanken-bold text-navy text-3xl mb-2">Próxima tarefa</Text>

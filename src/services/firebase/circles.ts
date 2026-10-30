@@ -39,6 +39,7 @@ import {
 } from '@/services/circle-rules'
 
 import { db } from './config'
+import { classifySnapshot, type SnapshotState } from './snapshot-state'
 import type { CircleDoc, CircleMemberDoc, InviteDoc } from './types'
 
 /**
@@ -160,18 +161,27 @@ export function observeMembers(
 }
 
 /**
- * Subscribe to the signed-in user's own member doc (readable even while pending). `exists` is false
- * when the doc is gone; `fromCache` tells whether the server confirmed that.
+ * Subscribe to the signed-in user's own member doc (readable even while pending). The member is null
+ * when the doc is gone; `state` is 'ready' when that is trustworthy and 'unconfirmed' when nothing
+ * could be read (offline, nothing cached) — see classifySnapshot.
  */
 export function observeOwnMember(
   circleId: string,
   uid: string,
-  onNext: (member: CircleMemberDoc | null, fromCache: boolean) => void,
+  onNext: (member: CircleMemberDoc | null, state: SnapshotState) => void,
   onError: (error: Error) => void
 ): Unsubscribe {
   return onSnapshot(
     memberRef(circleId, uid),
-    (snap) => onNext(toMember(snap), snap.metadata.fromCache),
+    (snap) =>
+      onNext(
+        toMember(snap),
+        classifySnapshot({
+          exists: snap.exists(),
+          fromCache: snap.metadata.fromCache,
+          hasPendingWrites: snap.metadata.hasPendingWrites,
+        })
+      ),
     onError
   )
 }

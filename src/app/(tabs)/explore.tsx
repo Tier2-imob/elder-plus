@@ -22,7 +22,7 @@ export default function Explore() {
     changeCategory,
     remove,
   } = useNearestTask(account?.uid)
-  const { circle, membership, members } = useCircle()
+  const { circle, membership, members, circleLoadError, retryCircle } = useCircle()
   const location = useUserLocation()
 
   return (
@@ -45,6 +45,8 @@ export default function Explore() {
       onEnableLocation={location.enable}
       topInset={insets.top}
       bottomInset={insets.bottom}
+      connectionError={circleLoadError}
+      onRetry={retryCircle}
       onOpenAccount={() => router.push('/account')}
       // Entrada de Documentos (Firebase Storage) oculta por ora: o Storage não
       // foi ativado no console e o plano de uso dos documentos ainda vai amadurecer.

@@ -64,6 +64,13 @@ cenário (`scenario`) com passos em ordem: `check(nome, true, fn)` exige que a o
 e `check(nome, false, fn)` que seja recusada. Ao mudar `firestore.rules`, rode os testes antes de
 publicar com `npm run rules:hml`.
 
+## Testes unitários
+
+```bash
+npm run test:unit   # lógica pura em tests/unit (o Node remove os tipos do TypeScript ao importar)
+npm test            # unitários + regras do Firestore
+```
+
 ## Banco de dados por ambiente
 
 - **Desenvolvimento:** Firebase Emulator (`npm run emulators`, projeto `demo-elder`); o app se conecta

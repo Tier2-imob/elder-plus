@@ -46,6 +46,14 @@ type CircleValue = {
    * while the creator's pre-circle data is being moved into it.
    */
   circleLoading: boolean
+  /**
+   * The circles (or the user's membership) could not be read — no connection. Cuidados and Explore
+   * show a message with "Tentar de novo" instead of guessing "no circle"; it clears by itself when
+   * the connection returns.
+   */
+  circleLoadError: boolean
+  /** Try again now: re-subscribes to the circles. */
+  retryCircle: () => void
   /** Every circle the user takes part in (for the selector), in the order they joined. */
   circles: CircleSummary[]
   /** The circle the screens show (the user's choice, kept on the device). */
@@ -118,6 +126,9 @@ const CircleContext = createContext<CircleValue | undefined>(undefined)
 /** Longest the circle screen waits for the creator's legacy data migration before opening. */
 const MIGRATION_WAIT_MS = 8000
 
+/** Without any answer from Firestore for this long, assume there is no connection. */
+const CONNECTION_TIMEOUT_MS = 15000
+
 /**
  * The signed-in user's care circles, live: users/{uid}.circleIds → for the active circle, own member
  * doc → circle doc and, once active, the member list. A pointer left behind after a manager removed
@@ -128,6 +139,11 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
 
   // undefined = not known yet (loading).
   const [circleIds, setCircleIds] = useState<string[] | undefined>(undefined)
+  // Connection problems: reading the user's circles, or the user's membership in the shown circle.
+  const [membershipsError, setMembershipsError] = useState(false)
+  const [memberError, setMemberError] = useState(false)
+  // Bumped by "Tentar de novo" to re-subscribe.
+  const [reloadKey, setReloadKey] = useState(0)
   const [roles, setRoles] = useState<AccountRole[]>(account?.roles ?? [])
   // The user's pick in the selector (kept on the device) and the "add another circle" flow.
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -166,18 +182,33 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
 
   useEffect(() => {
     if (!uid) return
-    return users.observeMemberships(
+    // Firestore reports "offline" only after its own timeout; this one is a safety net for a snapshot
+    // that never arrives at all.
+    const timeout = setTimeout(() => setMembershipsError(true), CONNECTION_TIMEOUT_MS)
+    const stop = users.observeMemberships(
       uid,
       (value) => {
+        clearTimeout(timeout)
+        setMembershipsError(false)
         setCircleIds(value.circleIds)
         setRoles(value.roles)
       },
       (e) => {
+        // A failed read is not "no circles": show the connection error and let the user retry.
         console.warn('observeMemberships failed', e)
-        setCircleIds([])
+        clearTimeout(timeout)
+        setMembershipsError(true)
+      },
+      () => {
+        clearTimeout(timeout)
+        setMembershipsError(true)
       }
     )
-  }, [uid])
+    return () => {
+      clearTimeout(timeout)
+      stop()
+    }
+  }, [uid, reloadKey])
 
   // The last circle the user picked on this device.
   const activeCacheKey = uid ? `activeCircle:${uid}` : null
@@ -223,16 +254,24 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     const stopMember = circles.observeOwnMember(
       circleId,
       uid,
-      (member, fromCache) => {
+      (member, state) => {
+        // Offline with nothing cached is not "you are not a member": keep waiting and show the error.
+        if (state === 'unconfirmed') {
+          setMemberError(true)
+          return
+        }
+        setMemberError(false)
         setMembership(member)
-        if (!member && !fromCache && clearedStaleFor.current !== circleId) {
+        if (!member && clearedStaleFor.current !== circleId) {
           clearedStaleFor.current = circleId
           circles.clearStaleCircle(uid, circleId).catch((e) => console.warn('clearStaleCircle failed', e))
         }
       },
       (e) => {
         console.warn('observeOwnMember failed', e)
-        setMembership(null)
+        // permission-denied: the user was removed; anything else is the connection.
+        if ((e as { code?: string }).code === 'permission-denied') setMembership(null)
+        else setMemberError(true)
       }
     )
     const stopCircle = circles.observeCircle(circleId, setCircle, (e) => {
@@ -244,7 +283,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       stopMember()
       stopCircle()
     }
-  }, [uid, circleId])
+  }, [uid, circleId, reloadKey])
 
   const isActive = membership?.status === 'ativo'
 
@@ -498,6 +537,13 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     left(circle.id)
   }, [circle, membership, left])
 
+  const circleLoadError = !!uid && (membershipsError || memberError)
+  const retryCircle = useCallback(() => {
+    setMembershipsError(false)
+    setMemberError(false)
+    setReloadKey((k) => k + 1)
+  }, [])
+
   const circleLoading =
     !!uid &&
     (circleId === undefined ||
@@ -507,6 +553,8 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const value = useMemo<CircleValue>(
     () => ({
       circleLoading,
+      circleLoadError,
+      retryCircle,
       circles: (circleIds ?? []).map((id) => ({
         id,
         name: circleDocs[id]?.subject.name ?? '…',
@@ -543,6 +591,8 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     }),
     [
       circleLoading,
+      circleLoadError,
+      retryCircle,
       circleIds,
       circleDocs,
       circleId,

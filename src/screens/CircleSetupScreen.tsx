@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native'
 
+import { ConnectionErrorCard } from '@/components/ConnectionErrorCard'
 import { FloatingNav } from '@/components/FloatingNav'
 import { CircleSwitcher } from '@/components/care/CircleSwitcher'
 import { Logo } from '@/components/Logo'
@@ -22,8 +23,9 @@ import { Logo } from '@/components/Logo'
  * - `pending`: joined by invite, waiting for a manager's approval.
  * - `partner`: partner accounts never take part in care circles.
  * - `loading`: resolving whether the user has a circle.
+ * - `error`: the circles could not be loaded (no connection): message and "Tentar de novo".
  */
-export type CircleSetupMode = 'loading' | 'create' | 'pending' | 'partner'
+export type CircleSetupMode = 'loading' | 'create' | 'pending' | 'partner' | 'error'
 
 /** What the acceptance step shows about an invite. */
 export type InvitePreview = {
@@ -497,6 +499,7 @@ export function CircleSetupScreen({
   onAcceptInvite,
   onCancelPending,
   onCancelAdding,
+  onRetry,
   circleSwitcher,
   onNavigate,
   topInset = 0,
@@ -517,6 +520,8 @@ export function CircleSetupScreen({
     onSelect: (circleId: string) => void
     onAdd?: () => void
   }
+  /** `error` mode: tries to load the circles again. */
+  onRetry?: () => void
   /** Shown while adding another circle: goes back to the current one. */
   onCancelAdding?: () => void
   /** Reject with user-facing PT messages. */
@@ -555,7 +560,12 @@ export function CircleSetupScreen({
           <Logo size="sm" style={{ width: 80, height: 24, marginBottom: 28 }} />
           {circleSwitcher && mode === 'pending' ? <CircleSwitcher {...circleSwitcher} /> : null}
 
-          {mode === 'loading' ? (
+          {mode === 'error' && onRetry ? (
+            <ConnectionErrorCard
+              message="Não foi possível carregar os seus círculos de cuidado. Verifique sua conexão com a internet e tente de novo."
+              onRetry={onRetry}
+            />
+          ) : mode === 'loading' ? (
             <View className="items-center pt-16" accessible accessibilityLabel="Carregando o círculo de cuidado">
               <ActivityIndicator size="large" color="#11375C" />
             </View>

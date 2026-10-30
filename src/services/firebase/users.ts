@@ -1,3 +1,4 @@
+import { classifySnapshot } from './snapshot-state'
 import {
   arrayUnion,
   doc,
@@ -99,13 +100,24 @@ export async function addRole(uid: string, role: Exclude<AccountRole, 'partner'>
 export function observeMemberships(
   uid: string,
   onNext: (value: { circleIds: string[]; roles: AccountRole[] }) => void,
-  onError: (error: Error) => void
+  onError: (error: Error) => void,
+  /**
+   * The profile could not be read and nothing is cached (no connection): "no circles" would be a
+   * guess, so the caller shows a connection error instead. The listener stays active, so a later
+   * server snapshot still arrives through `onNext` on its own once the connection is back.
+   */
+  onUnconfirmed: () => void
 ): Unsubscribe {
   return onSnapshot(
     doc(db, 'users', uid),
     { includeMetadataChanges: true },
     (snap) => {
-      if (snap.metadata.hasPendingWrites) return
+      const state = classifySnapshot(
+        { exists: snap.exists(), fromCache: snap.metadata.fromCache, hasPendingWrites: snap.metadata.hasPendingWrites },
+        { waitForServerWrites: true }
+      )
+      if (state === 'skip') return
+      if (state === 'unconfirmed') return onUnconfirmed()
       onNext({ circleIds: circleIdsOf(snap.data()), roles: rolesOf(snap.data()) })
     },
     onError
