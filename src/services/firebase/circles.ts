@@ -30,6 +30,7 @@ import {
   checkAccountCanJoin,
   checkCanInvite,
   checkInviteUsable,
+  canManage,
   circleError,
   countEmergencyContacts,
   makeInviteCode,
@@ -86,6 +87,9 @@ function toCircle(snap: DocumentSnapshot<DocumentData>): CircleDoc | null {
       at: data.consent?.at ?? null,
       version: data.consent?.version ?? '',
     },
+    status: data.status === 'inativo' ? 'inativo' : 'ativo',
+    inactivatedAt: data.inactivatedAt ?? null,
+    inactivatedBy: data.inactivatedBy ?? null,
   }
 }
 
@@ -193,11 +197,13 @@ export async function createCircle(input: {
   name: string
   roles: AccountRole[]
   currentCircleIds: string[]
+  /** Circles in `currentCircleIds` that are not inactive (the product limit counts only these). */
+  activeCircleCount: number
   forSelf: boolean
   subjectName?: string
   consentVersion: string
 }): Promise<string> {
-  const blocked = checkAccountCanJoin(input.roles, input.currentCircleIds)
+  const blocked = checkAccountCanJoin(input.roles, input.currentCircleIds, undefined, input.activeCircleCount)
   if (blocked) throw circleError(blocked)
   if (input.forSelf && !input.roles.includes('elder')) throw circleError('circle/not-allowed')
 
@@ -314,13 +320,14 @@ export async function acceptInvite(input: {
   name: string
   roles: AccountRole[]
   currentCircleIds: string[]
+  activeCircleCount: number
   code: string
   consentVersion: string
 }): Promise<InviteDoc> {
   const invite = await getInvite(input.code)
   const unusable = checkInviteUsable(invite)
   if (unusable || !invite) throw circleError(unusable ?? 'circle/invite-not-found')
-  const blocked = checkAccountCanJoin(input.roles, input.currentCircleIds, invite.circleId)
+  const blocked = checkAccountCanJoin(input.roles, input.currentCircleIds, invite.circleId, input.activeCircleCount)
   if (blocked) throw circleError(blocked)
 
   const batch = writeBatch(db)
@@ -426,6 +433,22 @@ export async function leaveCircle(circle: CircleDoc, member: CircleMemberDoc): P
     emergencyCount: Math.max(0, circle.emergencyCount - (member.permissions.includes('emergencia') ? 1 : 0)),
   })
   batch.update(userRef(member.uid), leaveCircleIds(circle.id))
+  await batch.commit()
+}
+
+/**
+ * Inactivate a circle (every document stays in the database; it becomes read-only) or reactivate
+ * it. The assisted person's persons/{id} doc mirrors the status in the same batch. Only a manager
+ * can do either (firestore.rules).
+ */
+export async function setCircleActive(circle: CircleDoc, actor: CircleMemberDoc, active: boolean): Promise<void> {
+  if (!canManage(actor)) throw circleError('circle/not-allowed')
+  const change = active
+    ? { status: 'ativo', inactivatedAt: deleteField(), inactivatedBy: deleteField() }
+    : { status: 'inativo', inactivatedAt: serverTimestamp(), inactivatedBy: actor.uid }
+  const batch = writeBatch(db)
+  batch.update(circleRef(circle.id), change)
+  if (circle.subjectId) batch.update(personRef(circle.subjectId), change)
   await batch.commit()
 }
 

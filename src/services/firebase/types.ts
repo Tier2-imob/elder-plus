@@ -120,6 +120,13 @@ export type CircleDoc = {
   emergencyCount: number
   /** Creator's declaration of authorization to register the assisted person's data. */
   consent: ConsentRecord & { by: string }
+  /**
+   * 'inativo' = read-only: every document is kept in the database but nothing can be written until a
+   * manager reactivates it. Circles from before this field are 'ativo'.
+   */
+  status: 'ativo' | 'inativo'
+  inactivatedAt: Timestamp | null
+  inactivatedBy: string | null
 }
 
 /** circles/{circleId}/members/{uid} document. The doc id is the member's uid. */
@@ -174,4 +181,6 @@ export type PersonDoc = {
   circleId: string
   createdBy: string
   createdAt: Timestamp | null
+  /** Mirrors the circle's status (inactivating the circle inactivates the person; data is kept). */
+  status: 'ativo' | 'inativo'
 }

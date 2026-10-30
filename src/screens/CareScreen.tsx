@@ -1,7 +1,8 @@
 import { FloatingNav } from '@/components/FloatingNav'
 import { CircleSwitcher } from '@/components/care/CircleSwitcher'
 import { Logo } from '@/components/Logo'
-import { FamilyView, type FamilyManagement, type FamilySelf } from '@/components/care/FamilyView'
+import { FamilyView, type FamilyLifecycle, type FamilyManagement, type FamilySelf } from '@/components/care/FamilyView'
+import { InactiveBanner } from '@/components/care/InactiveBanner'
 import { HealthView } from '@/components/care/HealthView'
 import { MedicationModal } from '@/components/care/MedicationModal'
 import { NewTaskModal } from '@/components/care/NewTaskModal'
@@ -52,6 +53,8 @@ export function CareScreen({
   circleMembers,
   familyManagement,
   familySelf,
+  familyLifecycle,
+  circleStatus,
   access,
   circleSwitcher,
   onToggleDone,
@@ -87,9 +90,13 @@ export function CareScreen({
   familyManagement?: FamilyManagement
   /** The viewer's own phone and leaving. */
   familySelf: FamilySelf
+  /** Inactivate / delete for good (managers; present only when one of them applies). */
+  familyLifecycle?: FamilyLifecycle
+  /** Inactive circle: banner on every tab (data kept, read-only); `onReactivate` for managers. */
+  circleStatus: { inactive: boolean; sinceLabel?: string; onReactivate?: () => Promise<void> }
   /** Circle selector (users in more than one circle). */
   circleSwitcher: {
-    circles: { id: string; name: string }[]
+    circles: { id: string; name: string; inactive?: boolean }[]
     activeCircleId: string | null
     onSelect: (circleId: string) => void
     onAdd?: () => void
@@ -203,6 +210,14 @@ export function CareScreen({
           paddingBottom: bottomInset + 100,
         }}
       >
+        {circleStatus.inactive ? (
+          <InactiveBanner
+            personName={circleName}
+            sinceLabel={circleStatus.sinceLabel}
+            onReactivate={circleStatus.onReactivate}
+          />
+        ) : null}
+
         {tab === 'rotina' ? (
           tasksLoading && tasks.length === 0 ? (
             <Text className="font-hanken text-muted text-sm px-1 py-4">
@@ -252,7 +267,7 @@ export function CareScreen({
             readOnly={!access.canEditHealth}
           />
         ) : (
-          <FamilyView circleName={circleName} members={circleMembers} management={familyManagement} self={familySelf} />
+          <FamilyView circleName={circleName} members={circleMembers} management={familyManagement} self={familySelf} lifecycle={familyLifecycle} />
         )}
       </ScrollView>
 

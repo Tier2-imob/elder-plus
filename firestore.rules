@@ -9,6 +9,8 @@ rules_version = '2';
 //   circles/{circleId}/members/{uid}   papel, permissões, status pendente|ativo
 //   invites/{code}                     convite de uso único, validade de 7 dias
 //   persons/{personId}                 pessoa assistida (usuário gerenciado; `uid` quando tem conta)
+//   circles/{id}.status                'ativo' (padrão) | 'inativo': inativo = somente leitura, os dados
+//                                      continuam no banco; só quem gerencia inativa e reativa
 //   users/{uid}.circleIds              círculos do usuário (até 5); contas antigas: `circleId`
 //   users/{uid}.roles                  perfis do usuário (elder, family, partner); antigas: `role`
 // As escritas com várias partes (criar círculo, aceitar convite, sair) são batches; as regras
@@ -65,8 +67,22 @@ service cloud.firestore {
       return circleIdsOf(get(userPath(request.auth.uid)).data);
     }
 
+    // Teto de segurança de ids de círculo por conta. O limite do produto (5 círculos ATIVOS) é conferido
+    // no app: círculos inativos não contam, e as regras não conseguem saber o status de cada um.
     function maxCircles() {
-      return 5;
+      return 20;
+    }
+
+    // Círculo inativo é somente leitura: nada é gravado nele até ser reativado (ou excluído).
+    function isCircleActive(circleId) {
+      return get(circlePath(circleId)).data.get('status', 'ativo') == 'ativo';
+    }
+
+    // Quem pode excluir o círculo de vez: o titular com conta ou, com titular nominal, quem gerencia.
+    function canDeleteCircle(circleId) {
+      let circle = get(circlePath(circleId)).data;
+      return circle.subject.uid == request.auth.uid
+        || (circle.subject.uid == null && can(circleId, 'gerenciar-membros'));
     }
 
     // Criar ou aceitar convite: perfil de cuidado (idoso ou família), ainda não está nesse
@@ -181,6 +197,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.memberCount == 1
         && request.resource.data.emergencyCount == 0
+        && request.resource.data.get('status', 'ativo') == 'ativo'
         && request.resource.data.consent.by == request.auth.uid
         && request.resource.data.consent.at == request.time
         && request.resource.data.consent.version is string
@@ -202,6 +219,7 @@ service cloud.firestore {
         // Quem gerencia: nome do titular, contadores e vínculo do titular com conta.
         (
           can(circleId, 'gerenciar-membros')
+          && resource.data.get('status', 'ativo') == 'ativo'
           && changed().hasOnly(['subject', 'memberCount', 'emergencyCount'])
           && request.resource.data.memberCount >= 0
           && request.resource.data.memberCount <= 10
@@ -216,9 +234,29 @@ service cloud.firestore {
             )
           )
         )
-        // Quem aceita convite: +1 membro, respeitando o limite.
+        // Inativar / reativar: só quem gerencia. Inativar carimba quando e por quem; reativar limpa.
         || (
-          changed().hasOnly(['memberCount'])
+          can(circleId, 'gerenciar-membros')
+          && changed().hasOnly(['status', 'inactivatedAt', 'inactivatedBy'])
+          && (
+            (
+              resource.data.get('status', 'ativo') == 'ativo'
+              && request.resource.data.status == 'inativo'
+              && request.resource.data.inactivatedAt == request.time
+              && request.resource.data.inactivatedBy == request.auth.uid
+            )
+            || (
+              resource.data.get('status', 'ativo') == 'inativo'
+              && request.resource.data.status == 'ativo'
+              && !('inactivatedAt' in request.resource.data)
+              && !('inactivatedBy' in request.resource.data)
+            )
+          )
+        )
+        // Quem aceita convite: +1 membro, respeitando o limite (só em círculo ativo).
+        || (
+          resource.data.get('status', 'ativo') == 'ativo'
+          && changed().hasOnly(['memberCount'])
           && request.resource.data.memberCount == resource.data.memberCount + 1
           && request.resource.data.memberCount <= 10
           && !exists(memberPath(circleId, request.auth.uid))
@@ -261,6 +299,7 @@ service cloud.firestore {
           // Convidado: entra pendente, com exatamente o que o convite concede.
           || (
             exists(circlePath(circleId))
+            && isCircleActive(circleId)
             && canJoinAnotherCircle(circleId)
             && request.resource.data.status == 'pendente'
             && get(invitePath(request.resource.data.inviteCode)).data.circleId == circleId
@@ -276,9 +315,10 @@ service cloud.firestore {
         );
 
         allow update: if signedIn() && (
-          // Quem gerencia, nunca no próprio doc.
+          // Quem gerencia, nunca no próprio doc, e só com o círculo ativo.
           (
             can(circleId, 'gerenciar-membros')
+            && isCircleActive(circleId)
             && memberUid != request.auth.uid
             && (
               // Titular: só pode ser aprovado (pendente → ativo); depois é intocável.
@@ -305,9 +345,11 @@ service cloud.firestore {
         );
 
         allow delete: if signedIn() && (
-          // Remover/recusar: quem gerencia, nunca a si mesmo nem o titular ativo.
+          // Remover/recusar: quem gerencia, nunca a si mesmo nem o titular ativo. Com o círculo inativo,
+          // só junto com a exclusão do círculo.
           (
             can(circleId, 'gerenciar-membros')
+            && (isCircleActive(circleId) || !existsAfter(circlePath(circleId)))
             && memberUid != request.auth.uid
             && !(resource.data.role == 'titular' && resource.data.status == 'ativo')
           )
@@ -320,17 +362,26 @@ service cloud.firestore {
 
       match /tasks/{taskId} {
         allow read: if can(circleId, 'ver-rotina');
-        allow write: if can(circleId, 'editar-rotina');
+        // Inativo = somente leitura; apagar só na exclusão definitiva do círculo.
+        allow create, update: if can(circleId, 'editar-rotina') && isCircleActive(circleId);
+        allow delete: if (can(circleId, 'editar-rotina') && isCircleActive(circleId))
+          || (canDeleteCircle(circleId) && !isCircleActive(circleId));
       }
 
       match /medications/{medicationId} {
         allow read: if can(circleId, 'ver-saude');
-        allow write: if can(circleId, 'editar-saude');
+        // Inativo = somente leitura; apagar só na exclusão definitiva do círculo.
+        allow create, update: if can(circleId, 'editar-saude') && isCircleActive(circleId);
+        allow delete: if (can(circleId, 'editar-saude') && isCircleActive(circleId))
+          || (canDeleteCircle(circleId) && !isCircleActive(circleId));
       }
 
       match /medicationDoses/{doseId} {
         allow read: if can(circleId, 'ver-saude');
-        allow write: if can(circleId, 'editar-saude');
+        // Inativo = somente leitura; apagar só na exclusão definitiva do círculo.
+        allow create, update: if can(circleId, 'editar-saude') && isCircleActive(circleId);
+        allow delete: if (can(circleId, 'editar-saude') && isCircleActive(circleId))
+          || (canDeleteCircle(circleId) && !isCircleActive(circleId));
       }
 
       // Registro de atividade: só acrescenta.
@@ -360,16 +411,26 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time;
 
-      // Quem gerencia o círculo: nome, e o vínculo da conta junto com o do círculo.
-      allow update: if can(resource.data.circleId, 'gerenciar-membros')
-        && changed().hasOnly(['name', 'uid'])
-        && (
-          request.resource.data.uid == resource.data.uid
-          || (
-            resource.data.uid == null
-            && getAfter(circlePath(resource.data.circleId)).data.subject.uid == request.resource.data.uid
+      // Quem gerencia o círculo: nome (círculo ativo), vínculo da conta junto com o do círculo e o
+      // status, que espelha o do círculo no mesmo batch.
+      allow update: if can(resource.data.circleId, 'gerenciar-membros') && (
+        (
+          isCircleActive(resource.data.circleId)
+          && changed().hasOnly(['name', 'uid'])
+          && (
+            request.resource.data.uid == resource.data.uid
+            || (
+              resource.data.uid == null
+              && getAfter(circlePath(resource.data.circleId)).data.subject.uid == request.resource.data.uid
+            )
           )
-        );
+        )
+        || (
+          changed().hasOnly(['status', 'inactivatedAt', 'inactivatedBy'])
+          && request.resource.data.get('status', 'ativo')
+            == getAfter(circlePath(resource.data.circleId)).data.get('status', 'ativo')
+        )
+      );
 
       // Só junto com a exclusão do círculo.
       allow delete: if can(resource.data.circleId, 'gerenciar-membros')
@@ -396,6 +457,7 @@ service cloud.firestore {
         && request.resource.data.revoked == false
         && request.resource.data.role in ['titular', 'admin', 'familiar', 'profissional', 'observador']
         && get(circlePath(request.resource.data.circleId)).data.memberCount < 10
+        && isCircleActive(request.resource.data.circleId)
         && (
           request.resource.data.role != 'titular'
           || get(circlePath(request.resource.data.circleId)).data.subject.uid == null
@@ -410,6 +472,7 @@ service cloud.firestore {
           && resource.data.expiresAt > request.time
           && request.resource.data.usedBy == request.auth.uid
           && request.resource.data.usedAt == request.time
+          && isCircleActive(resource.data.circleId)
           && existsAfter(memberPath(resource.data.circleId, request.auth.uid))
         )
         // Revogação: quem gerencia, enquanto não usado.

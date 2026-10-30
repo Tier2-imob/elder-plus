@@ -12,7 +12,7 @@ export function CircleSwitcher({
   onSelect,
   onAdd,
 }: {
-  circles: { id: string; name: string }[]
+  circles: { id: string; name: string; inactive?: boolean }[]
   activeCircleId: string | null
   onSelect: (circleId: string) => void
   /** Absent when no other circle can be added (limit, no care profile). */
@@ -38,18 +38,24 @@ export function CircleSwitcher({
             key={c.id}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={`Círculo de ${c.name}`}
+            accessibilityLabel={`Círculo de ${c.name}${c.inactive ? ', inativo' : ''}`}
             onPress={() => onSelect(c.id)}
             className="min-h-[48px] flex-row items-center gap-1.5 px-4 rounded-full active:opacity-70"
             style={{
+              opacity: c.inactive && !active ? 0.6 : 1,
               backgroundColor: active ? '#11375C' : 'rgba(17,55,92,0.06)',
               borderWidth: 1.4,
               borderColor: active ? '#11375C' : '#E4DCD3',
             }}
           >
-            <MaterialIcons name="diversity-3" size={18} color={active ? '#FFFFFF' : '#11375C'} />
+            <MaterialIcons
+              name={c.inactive ? 'pause-circle-outline' : 'diversity-3'}
+              size={18}
+              color={active ? '#FFFFFF' : '#11375C'}
+            />
             <Text className="font-hanken-bold text-[15px]" style={{ color: active ? '#FFFFFF' : '#11375C' }}>
               {c.name}
+              {c.inactive ? ' · inativo' : ''}
             </Text>
           </Pressable>
         )

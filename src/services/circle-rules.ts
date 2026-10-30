@@ -29,6 +29,7 @@ export type CircleErrorCode =
   | 'circle/emergency-needs-phone'
   | 'circle/invalid-phone'
   | 'circle/too-many-circles'
+  | 'circle/inactive'
 
 export function circleError(code: CircleErrorCode): Error & { code: CircleErrorCode } {
   const error = new Error(code) as Error & { code: CircleErrorCode }
@@ -39,6 +40,7 @@ export function circleError(code: CircleErrorCode): Error & { code: CircleErrorC
 const MESSAGES: Record<CircleErrorCode, string> = {
   'circle/partner-not-allowed': 'Contas de comércio e parceiros não participam de círculos de cuidado.',
   'circle/already-in-circle': 'Você já participa deste círculo.',
+  'circle/inactive': 'Este círculo está inativo e só pode ser lido. Reative-o para fazer alterações.',
   'circle/too-many-circles': `Você já participa de ${CIRCLE_LIMITS.maxCircles} círculos, o limite atual.`,
   'circle/full': `O círculo já tem ${CIRCLE_LIMITS.maxMembers} membros, o limite atual.`,
   'circle/emergency-full': `O círculo já tem ${CIRCLE_LIMITS.maxEmergencyContacts} contatos de emergência.`,
@@ -144,16 +146,33 @@ export const isAssignable = (member: CircleMemberDoc) => hasPermission(member, '
 /** A care profile (elder or family) is needed to take part in circles; partners never do. */
 export const hasCareProfile = (roles: AccountRole[]) => roles.includes('elder') || roles.includes('family')
 
-/** Who may create or join a(nother) circle. `circleId` = the one being joined, when known. */
+/**
+ * Who may create or join a(nother) circle. `circleId` = the one being joined, when known.
+ * `activeCircleCount` = how many of `currentCircleIds` are not inactive: inactive circles don't
+ * count toward the limit (the rules only cap the raw number of ids, much higher).
+ */
 export function checkAccountCanJoin(
   roles: AccountRole[],
   currentCircleIds: string[],
-  circleId?: string
+  circleId?: string,
+  activeCircleCount: number = currentCircleIds.length
 ): CircleErrorCode | null {
   if (!hasCareProfile(roles)) return 'circle/partner-not-allowed'
   if (circleId && currentCircleIds.includes(circleId)) return 'circle/already-in-circle'
-  if (currentCircleIds.length >= CIRCLE_LIMITS.maxCircles) return 'circle/too-many-circles'
+  if (activeCircleCount >= CIRCLE_LIMITS.maxCircles) return 'circle/too-many-circles'
   return null
+}
+
+/** An inactive circle is read-only: its data is kept but nothing can be written. */
+export const isInactive = (circle: Pick<CircleDoc, 'status'> | null | undefined) => circle?.status === 'inativo'
+
+/** `permission` and an active circle: what UI actions that write circle data need. */
+export function canEditCircleData(
+  member: CircleMemberDoc | null | undefined,
+  circle: Pick<CircleDoc, 'status'> | null | undefined,
+  permission: PermissionKey
+): boolean {
+  return hasPermission(member, permission) && !isInactive(circle)
 }
 
 /** Can `actor` issue an invite for `role` with `permissions` in `circle` right now? */

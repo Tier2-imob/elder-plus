@@ -512,7 +512,7 @@ export function CircleSetupScreen({
   onCreate: (input: { forSelf: boolean; subjectName?: string }) => Promise<void>
   /** Circle selector (users in more than one circle); absent while adding one. */
   circleSwitcher?: {
-    circles: { id: string; name: string }[]
+    circles: { id: string; name: string; inactive?: boolean }[]
     activeCircleId: string | null
     onSelect: (circleId: string) => void
     onAdd?: () => void

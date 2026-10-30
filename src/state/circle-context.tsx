@@ -26,6 +26,7 @@ import {
   checkAccountCanJoin,
   checkInviteUsable,
   circleError,
+  isInactive,
   normalizeInviteCode,
 } from '@/services/circle-rules';
 import * as circles from '@/services/firebase/circles';
@@ -37,7 +38,7 @@ import { readCache, writeCache } from '@/services/local-cache';
 type CircleAccount = { uid: string; name: string; roles: AccountRole[] } | null
 
 /** A circle the user takes part in, as the circle selector lists it. */
-export type CircleSummary = { id: string; name: string }
+export type CircleSummary = { id: string; name: string; inactive: boolean }
 
 type CircleValue = {
   /**
@@ -49,6 +50,12 @@ type CircleValue = {
   circles: CircleSummary[]
   /** The circle the screens show (the user's choice, kept on the device). */
   activeCircleId: string | null
+  /** The shown circle is inactive: read-only, nothing can be written until a manager reactivates it. */
+  circleInactive: boolean
+  /** Inactivate the shown circle (data is kept; manager only). */
+  inactivateCircle: () => Promise<void>
+  /** Reactivate the shown circle (manager only). */
+  reactivateCircle: () => Promise<void>
   selectCircle: (circleId: string) => void
   /**
    * Show the setup screen to create or join another circle even though the user has circles
@@ -295,6 +302,9 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     setCircleIds((prev) => (prev ?? []).filter((x) => x !== id))
   }, [])
 
+  // Inactive circles don't count toward the limit; a circle whose doc hasn't loaded yet counts.
+  const activeCircleCount = (circleIds ?? []).filter((id) => circleDocs[id]?.status !== 'inativo').length
+
   const createCircle = useCallback(
     async (input: { forSelf: boolean; subjectName?: string }): Promise<void> => {
       if (!account) throw new Error('No signed-in user')
@@ -303,19 +313,21 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
         name: account.name,
         roles,
         currentCircleIds: circleIds ?? [],
+        activeCircleCount,
         forSelf: input.forSelf,
         subjectName: input.subjectName,
         consentVersion: CIRCLE_CONSENT_VERSION,
       })
       joined(id)
     },
-    [account, roles, circleIds, joined]
+    [account, roles, circleIds, activeCircleCount, joined]
   )
 
   const myCircleDocs = (circleIds ?? []).map((id) => circleDocs[id]).filter((c): c is CircleDoc => !!c)
   const canCreateForSelf = roles.includes('elder') && !myCircleDocs.some((c) => c.subject.uid === uid)
   const canCreateForOther = roles.includes('family')
-  const canAddCircle = circleIds !== undefined && checkAccountCanJoin(roles, circleIds) === null
+  const canAddCircle =
+    circleIds !== undefined && checkAccountCanJoin(roles, circleIds, undefined, activeCircleCount) === null
 
   // A failed circle read resolves to null (treated as "no circle"), so this never sticks.
   // ─── Convites ───────────────────────────────────────────────────────────────
@@ -349,6 +361,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const createInvite = useCallback(
     async (input: { role: CircleRole; label?: string; permissions: PermissionKey[] }): Promise<InviteDoc> => {
       if (!circle || !membership) throw circleError('circle/not-allowed')
+      if (isInactive(circle)) throw circleError('circle/inactive')
       const code = await circles.createInvite({ circle, actor: membership, ...input })
       setInvitesVersion((n) => n + 1)
       const invite = await circles.getInvite(code)
@@ -375,6 +388,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const approveMember = useCallback(
     async (memberUid: string): Promise<void> => {
       if (!circleId) throw circleError('circle/not-allowed')
+      if (isInactive(circle)) throw circleError('circle/inactive')
       const target = findMember(memberUid)
       // One titular per circle: the rules would refuse a second link anyway.
       if (target.role === 'titular' && circle?.subject.uid) throw circleError('circle/titular-exists')
@@ -401,6 +415,7 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       changes: { role: CircleRole; label: string | null; permissions: PermissionKey[] }
     ): Promise<void> => {
       if (!circle) throw circleError('circle/not-allowed')
+      if (isInactive(circle)) throw circleError('circle/inactive')
       const target = findMember(memberUid)
       if (!canEditMember(membership, target)) throw circleError('circle/not-allowed')
       await circles.updateMember(circle, target, changes, members)
@@ -415,6 +430,16 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
     await circles.leaveCircle(circle, membership)
     left(circle.id)
   }, [circle, membership, members, left])
+
+  const inactivateCircle = useCallback(async (): Promise<void> => {
+    if (!circle || !membership || !canManage(membership)) throw circleError('circle/not-allowed')
+    await circles.setCircleActive(circle, membership, false)
+  }, [circle, membership])
+
+  const reactivateCircle = useCallback(async (): Promise<void> => {
+    if (!circle || !membership || !canManage(membership)) throw circleError('circle/not-allowed')
+    await circles.setCircleActive(circle, membership, true)
+  }, [circle, membership])
 
   const dissolve = useCallback(async (): Promise<void> => {
     if (!circle || !membership || !canDissolve(membership, members, circle)) throw circleError('circle/not-allowed')
@@ -458,12 +483,13 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
         name: account.name,
         roles,
         currentCircleIds: circleIds ?? [],
+        activeCircleCount,
         code,
         consentVersion: CIRCLE_CONSENT_VERSION,
       })
       joined(invite.circleId)
     },
-    [account, roles, circleIds, joined]
+    [account, roles, circleIds, activeCircleCount, joined]
   )
 
   const cancelPending = useCallback(async (): Promise<void> => {
@@ -481,8 +507,15 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
   const value = useMemo<CircleValue>(
     () => ({
       circleLoading,
-      circles: (circleIds ?? []).map((id) => ({ id, name: circleDocs[id]?.subject.name ?? '…' })),
+      circles: (circleIds ?? []).map((id) => ({
+        id,
+        name: circleDocs[id]?.subject.name ?? '…',
+        inactive: circleDocs[id]?.status === 'inativo',
+      })),
       activeCircleId: circleId ?? null,
+      circleInactive: isInactive(circle),
+      inactivateCircle,
+      reactivateCircle,
       selectCircle,
       addingCircle,
       canAddCircle,
@@ -513,6 +546,8 @@ export function CircleProvider({ account, children }: { account: CircleAccount; 
       circleIds,
       circleDocs,
       circleId,
+      inactivateCircle,
+      reactivateCircle,
       selectCircle,
       addingCircle,
       canAddCircle,

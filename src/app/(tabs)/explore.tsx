@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useNearestTask } from '@/hooks/useNearestTask'
 import { ExploreScreen } from '@/screens/ExploreScreen'
-import { hasPermission, isAssignable } from '@/services/circle-rules'
+import { canEditCircleData, hasPermission, isAssignable } from '@/services/circle-rules'
 import { useAccount } from '@/state/account-context'
 import { toFamilyMember, useCircle } from '@/state/circle-context'
 
@@ -21,14 +21,14 @@ export default function Explore() {
     changeCategory,
     remove,
   } = useNearestTask(account?.uid)
-  const { membership, members } = useCircle()
+  const { circle, membership, members } = useCircle()
 
   return (
     <ExploreScreen
       name={account?.name}
       // The card needs a circle the viewer can read the routine of.
       showNextTask={hasPermission(membership, 'ver-rotina')}
-      taskReadOnly={!hasPermission(membership, 'editar-rotina')}
+      taskReadOnly={!canEditCircleData(membership, circle, 'editar-rotina')}
       nearestTask={nearestTask}
       nearestTaskDone={nearestTaskDone}
       taskLoading={taskLoading}

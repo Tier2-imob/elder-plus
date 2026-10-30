@@ -309,7 +309,7 @@ export function ExploreScreen({
             className="overflow-hidden border border-hairline"
             style={{ height: 200, borderRadius: 20 }}
           >
-            <MapEmbed query="servicos de saude para idosos" />
+            <MapEmbed query="Farmácia" />
           </View>
         </View>
 

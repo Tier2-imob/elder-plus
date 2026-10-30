@@ -7,6 +7,7 @@ import { useMedications } from '@/hooks/useMedications'
 import { CareScreen } from '@/screens/CareScreen'
 import { CircleSetupScreen, type CircleSetupMode, type InvitePreview } from '@/screens/CircleSetupScreen'
 import {
+  canEditCircleData,
   hasCareProfile,
   canDissolve,
   canLeave,
@@ -91,6 +92,9 @@ export default function Care() {
     canCreateForSelf,
     canCreateForOther,
     circle,
+    circleInactive,
+    inactivateCircle,
+    reactivateCircle,
     membership,
     members,
     createCircle,
@@ -173,9 +177,23 @@ export default function Care() {
       circleSwitcher={circleSwitcher}
       access={{
         canSeeRoutine: hasPermission(membership, 'ver-rotina'),
-        canEditRoutine: hasPermission(membership, 'editar-rotina'),
+        // An inactive circle is read-only for everyone.
+        canEditRoutine: canEditCircleData(membership, circle, 'editar-rotina'),
         canSeeHealth: hasPermission(membership, 'ver-saude'),
-        canEditHealth: hasPermission(membership, 'editar-saude'),
+        canEditHealth: canEditCircleData(membership, circle, 'editar-saude'),
+      }}
+      circleStatus={{
+        inactive: circleInactive,
+        sinceLabel: circle.inactivatedAt ? shortDay(circle.inactivatedAt.toDate()) : undefined,
+        onReactivate: canManage(membership) ? inPortuguese('reactivateCircle', reactivateCircle) : undefined,
+      }}
+      familyLifecycle={{
+        subjectName: circle.subject.name,
+        inactive: circleInactive,
+        onInactivate:
+          canManage(membership) && !circleInactive ? inPortuguese('inactivateCircle', inactivateCircle) : undefined,
+        // Deleting for good stays available, apart from inactivating (LGPD: erasure on request).
+        onDelete: canDissolve(membership, members, circle) ? inPortuguese('dissolveCircle', dissolveCircle) : undefined,
       }}
       circleName={circle.subject.name}
       circleMembers={members.filter((m) => m.status === 'ativo').map((m) => toFamilyMember(m, membership))}
@@ -184,13 +202,13 @@ export default function Care() {
         formatPhone,
         onSavePhone: inPortuguese('updateMyPhone', updateMyPhone),
         onLeave: inPortuguese('leaveCircle', leaveCircle),
-        leaveBlockedReason: leaveBlockedReason(canLeave(membership, members)),
-        onDissolve: canDissolve(membership, members, circle)
-          ? inPortuguese('dissolveCircle', dissolveCircle)
-          : undefined,
+        leaveBlockedReason: canDissolve(membership, members, circle)
+          ? 'Você é a única pessoa neste círculo. Para encerrar, inative ou exclua o círculo em "Encerrar o cuidado".'
+          : leaveBlockedReason(canLeave(membership, members)),
       }}
       familyManagement={
-        canManage(membership)
+        // Inviting, approving and editing members are refused on an inactive circle.
+        canManage(membership) && !circleInactive
           ? {
               inviterName: membership.name,
               // One titular only: not once linked, nor while a titular invite or request is open.

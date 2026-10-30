@@ -46,21 +46,200 @@ export type FamilySelf = {
   /** Both reject with a user-facing PT message. */
   onSavePhone: (phone: string) => Promise<void>
   onLeave: () => Promise<void>
-  /** Why leaving is not possible right now (titular, last manager), if so. */
+  /** Why leaving is not possible right now (titular, last manager, alone), if so. */
   leaveBlockedReason?: string
-  /** Alone in the circle: leaving deletes it (and all its data). */
-  onDissolve?: () => Promise<void>
+}
+
+/** Ending the care of the assisted person: inactivate (reversible) or delete for good. */
+export type FamilyLifecycle = {
+  /** The assisted person's name: typed to confirm a permanent deletion. */
+  subjectName: string
+  inactive: boolean
+  /** A manager of an active circle: may inactivate. Rejects with a user-facing PT message. */
+  onInactivate?: () => Promise<void>
+  /** Alone in the circle and allowed to delete it: may delete for good. Rejects like onInactivate. */
+  onDelete?: () => Promise<void>
+}
+
+const normalizeName = (text: string) =>
+  text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toLowerCase()
+
+/**
+ * "Encerrar o cuidado": two separate actions. Inactivating keeps every record (read-only, a manager
+ * can reactivate); deleting for good erases them (LGPD) and asks to type the person's name.
+ */
+function LifecycleSection({ lifecycle }: { lifecycle: FamilyLifecycle }) {
+  const [busy, setBusy] = useState<'inactivate' | 'delete' | null>(null)
+  const [confirmInactivate, setConfirmInactivate] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [error, setError] = useState<string | undefined>(undefined)
+
+  if (!lifecycle.onInactivate && !lifecycle.onDelete) return null
+
+  const nameMatches = normalizeName(typed) === normalizeName(lifecycle.subjectName)
+
+  async function run(kind: 'inactivate' | 'delete', action: () => Promise<void>) {
+    if (busy) return
+    setBusy(kind)
+    setError(undefined)
+    try {
+      await action()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível concluir.')
+    } finally {
+      setBusy(null)
+      setConfirmInactivate(false)
+    }
+  }
+
+  return (
+    <View className="mt-4 rounded-3xl border border-hairline bg-white p-5">
+      <Text accessibilityRole="header" className="font-hanken-bold text-navy text-lg mb-3">
+        Encerrar o cuidado
+      </Text>
+
+      {lifecycle.onInactivate ? (
+        <View>
+          <Text className="font-hanken-bold text-ink text-base mb-1">Inativar o círculo</Text>
+          <Text className="font-hanken text-ink text-[15px] leading-[22px]">
+            Os dados de {lifecycle.subjectName} ficam guardados e o círculo passa a ser somente para leitura. Você
+            pode reativar quando quiser.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={confirmInactivate ? 'Confirmar a inativação do círculo' : 'Inativar o círculo'}
+            accessibilityState={{ busy: busy === 'inactivate', disabled: !!busy }}
+            disabled={!!busy}
+            onPress={() => {
+              const inactivate = lifecycle.onInactivate
+              if (!inactivate) return
+              if (confirmInactivate) void run('inactivate', inactivate)
+              else setConfirmInactivate(true)
+            }}
+            className="min-h-[56px] items-center justify-center rounded-2xl mt-3 px-4 active:opacity-70"
+            style={{ backgroundColor: confirmInactivate ? '#11375C' : 'rgba(17,55,92,0.08)' }}
+          >
+            {busy === 'inactivate' ? (
+              <ActivityIndicator size="small" color={confirmInactivate ? '#FFFFFF' : '#11375C'} />
+            ) : (
+              <Text
+                className="font-hanken-bold text-base text-center"
+                style={{ color: confirmInactivate ? '#FFFFFF' : '#11375C' }}
+              >
+                {confirmInactivate ? 'Toque de novo para inativar' : 'Inativar círculo'}
+              </Text>
+            )}
+          </Pressable>
+          {confirmInactivate && busy !== 'inactivate' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar, manter o círculo ativo"
+              onPress={() => setConfirmInactivate(false)}
+              className="min-h-[56px] items-center justify-center rounded-2xl mt-2 active:opacity-70"
+              style={{ backgroundColor: 'rgba(17,55,92,0.06)' }}
+            >
+              <Text className="font-hanken-bold text-base text-navy">Cancelar</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
+      {lifecycle.onDelete ? (
+        <View className={lifecycle.onInactivate ? 'mt-6 pt-5 border-t border-hairline' : ''}>
+          <Text className="font-hanken-bold text-base mb-1" style={{ color: '#C0392B' }}>
+            Excluir definitivamente
+          </Text>
+          <Text className="font-hanken text-ink text-[15px] leading-[22px]">
+            Apaga <Text className="font-hanken-bold">para sempre</Text> o círculo e todas as tarefas, medicamentos e
+            doses. Não dá para desfazer.
+          </Text>
+
+          {deleteOpen ? (
+            <View>
+              <Text className="font-hanken-medium text-navy text-[15px] leading-[22px] mt-4 mb-2">
+                Para confirmar, digite o nome: <Text className="font-hanken-bold">{lifecycle.subjectName}</Text>
+              </Text>
+              <TextInput
+                value={typed}
+                onChangeText={setTyped}
+                placeholder={lifecycle.subjectName}
+                placeholderTextColor="#6B7A85"
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel={`Digite ${lifecycle.subjectName} para confirmar a exclusão`}
+                className="min-h-[56px] rounded-2xl border-[1.6px] border-hairline bg-white px-4 font-hanken-medium text-[17px] text-ink"
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Excluir para sempre"
+                accessibilityState={{ busy: busy === 'delete', disabled: !nameMatches || !!busy }}
+                disabled={!nameMatches || !!busy}
+                onPress={() => {
+                  const del = lifecycle.onDelete
+                  if (del) void run('delete', del)
+                }}
+                className="min-h-[56px] items-center justify-center rounded-2xl mt-3 px-4 active:opacity-70"
+                style={{ backgroundColor: nameMatches ? '#C0392B' : 'rgba(192,57,43,0.25)' }}
+              >
+                {busy === 'delete' ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text className="font-hanken-bold text-base text-white">Excluir para sempre</Text>
+                )}
+              </Pressable>
+              {busy !== 'delete' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancelar a exclusão"
+                  onPress={() => {
+                    setDeleteOpen(false)
+                    setTyped('')
+                  }}
+                  className="min-h-[56px] items-center justify-center rounded-2xl mt-2 active:opacity-70"
+                  style={{ backgroundColor: 'rgba(17,55,92,0.06)' }}
+                >
+                  <Text className="font-hanken-bold text-base text-navy">Cancelar</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Excluir o círculo definitivamente"
+              onPress={() => setDeleteOpen(true)}
+              className="min-h-[56px] items-center justify-center rounded-2xl mt-3 px-4 active:opacity-70"
+              style={{ backgroundColor: 'rgba(192,57,43,0.08)' }}
+            >
+              <Text className="font-hanken-bold text-base" style={{ color: '#C0392B' }}>
+                Excluir definitivamente
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      ) : null}
+
+      {error ? (
+        <Text
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          className="font-hanken-medium text-terracotta text-[15px] leading-[22px] mt-4"
+        >
+          {error}
+        </Text>
+      ) : null}
+    </View>
+  )
 }
 
 /** "Você neste círculo": own phone and leaving. */
 function SelfSection({ self }: { self: FamilySelf }) {
   const [phone, setPhone] = useState(self.phone ? self.formatPhone(self.phone) : '')
-  const [busy, setBusy] = useState<'phone' | 'leave' | 'dissolve' | null>(null)
+  const [busy, setBusy] = useState<'phone' | 'leave' | null>(null)
   const [confirmLeave, setConfirmLeave] = useState(false)
-  const [confirmDissolve, setConfirmDissolve] = useState(false)
   const [message, setMessage] = useState<{ text: string; error: boolean } | undefined>(undefined)
 
-  async function run(kind: 'phone' | 'leave' | 'dissolve', action: () => Promise<void>, success?: string) {
+  async function run(kind: 'phone' | 'leave', action: () => Promise<void>, success?: string) {
     if (busy) return
     setBusy(kind)
     setMessage(undefined)
@@ -115,55 +294,7 @@ function SelfSection({ self }: { self: FamilySelf }) {
         </Text>
       ) : null}
 
-      {self.onDissolve ? (
-        // Alone in the circle: leaving means ending it.
-        <View className="mt-5">
-          <Text className="font-hanken text-ink text-[15px] leading-[22px]">
-            Você é a única pessoa neste círculo. Ao sair, o círculo é encerrado e{' '}
-            <Text className="font-hanken-bold">todas as tarefas, medicamentos e doses são apagados de vez</Text>.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              confirmDissolve
-                ? 'Confirmar: sair e apagar o círculo e todos os dados'
-                : 'Sair e excluir o círculo'
-            }
-            accessibilityState={{ busy: busy === 'dissolve', disabled: !!busy }}
-            disabled={!!busy}
-            onPress={() => {
-              const dissolve = self.onDissolve
-              if (!dissolve) return
-              if (confirmDissolve) void run('dissolve', dissolve)
-              else setConfirmDissolve(true)
-            }}
-            className="min-h-[56px] items-center justify-center rounded-2xl mt-3 px-4 active:opacity-70"
-            style={{ backgroundColor: confirmDissolve ? '#C0392B' : 'rgba(192,57,43,0.08)' }}
-          >
-            {busy === 'dissolve' ? (
-              <ActivityIndicator size="small" color={confirmDissolve ? '#FFFFFF' : '#C0392B'} />
-            ) : (
-              <Text
-                className="font-hanken-bold text-base text-center"
-                style={{ color: confirmDissolve ? '#FFFFFF' : '#C0392B' }}
-              >
-                {confirmDissolve ? 'Toque de novo para apagar tudo e sair' : 'Sair e excluir o círculo'}
-              </Text>
-            )}
-          </Pressable>
-          {confirmDissolve && busy !== 'dissolve' ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cancelar, manter o círculo"
-              onPress={() => setConfirmDissolve(false)}
-              className="min-h-[56px] items-center justify-center rounded-2xl mt-2 active:opacity-70"
-              style={{ backgroundColor: 'rgba(17,55,92,0.06)' }}
-            >
-              <Text className="font-hanken-bold text-base text-navy">Cancelar, manter o círculo</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : self.leaveBlockedReason ? (
+      {self.leaveBlockedReason ? (
         <Text className="font-hanken text-muted text-sm leading-5 mt-5">{self.leaveBlockedReason}</Text>
       ) : (
         <Pressable
@@ -241,12 +372,14 @@ export function FamilyView({
   members,
   management,
   self,
+  lifecycle,
 }: {
   circleName: string
   members: FamilyMember[]
   /** Present when the viewer can manage members (convidar, aprovar). */
   management?: FamilyManagement
   self: FamilySelf
+  lifecycle?: FamilyLifecycle
 }) {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [editing, setEditing] = useState<FamilyMember | null>(null)
@@ -474,6 +607,7 @@ export function FamilyView({
       ) : null}
 
       <SelfSection self={self} />
+      {lifecycle ? <LifecycleSection lifecycle={lifecycle} /> : null}
 
       {editing && management ? (
         <MemberEditModal
