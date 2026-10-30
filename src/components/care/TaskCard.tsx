@@ -85,7 +85,7 @@ export function TaskCard({
   onChangeCategory,
   onDelete,
   readOnly = false,
-  softShadow = false,
+  flat = false,
 }: {
   task: Task
   done: boolean
@@ -98,8 +98,8 @@ export function TaskCard({
   onDelete?: () => void
   /** Viewer without `editar-rotina`: no actions, no delete, details without edits. */
   readOnly?: boolean
-  /** No colored border, only a minimal shadow (Explore). */
-  softShadow?: boolean
+  /** No border and no shadow (Explore). */
+  flat?: boolean
 }) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -131,10 +131,10 @@ export function TaskCard({
       onPress={() => setDetailsOpen(true)}
       onLongPress={canDelete ? enterDeleteMode : undefined}
       delayLongPress={450}
-      className={softShadow ? 'rounded-3xl mb-4 p-5 active:opacity-90' : 'rounded-3xl border mb-4 p-5 active:opacity-90'}
+      className={flat ? 'rounded-3xl mb-4 p-5 active:opacity-90' : 'rounded-3xl border mb-4 p-5 active:opacity-90'}
       style={{
-        ...(softShadow
-          ? { shadowColor: '#11375C', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 }
+        ...(flat
+          ? {}
           : { borderColor: done ? '#C8E6C9' : '#E4DCD3' }),
         backgroundColor: done ? '#F5FBF5' : '#FFFFFF',
       }}
