@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.11",
     "eslint": "^9.39.5",
@@ -58,7 +59,8 @@
     "emulators": "firebase emulators:start --only auth,firestore --project dev",
     "migrate:dev": "node scripts/migrate.mjs --env dev",
     "migrate:hml": "node scripts/migrate.mjs --env hml",
-    "rules:hml": "firebase deploy --only firestore:rules --project hml"
+    "rules:hml": "firebase deploy --only firestore:rules --project hml",
+    "test:rules": "node tests/run-rules-tests.mjs"
   },
   "private": true
 }
