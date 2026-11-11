@@ -2,6 +2,8 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
+import { PasswordInput } from "@/components/PasswordInput";
+
 import type { AccountRole } from "@/components/types";
 import { ROLE_CONTEXT } from "@/constants/constants";
 
@@ -149,14 +151,12 @@ export function SignupScreen({
         {emailError ? <Text className="font-hanken-medium text-terracotta text-xs mt-2">{emailError}</Text> : null}
 
         <Text className="font-hanken-medium text-navy text-xs mb-2 mt-5">Sua senha</Text>
-        <TextInput
+        <PasswordInput
           ref={passwordRef}
           value={password}
           onChangeText={setPassword}
           placeholder="Pelo menos 6 caracteres"
           placeholderTextColor="#6B7A85"
-          secureTextEntry
-          autoCapitalize="none"
           autoComplete="new-password"
           textContentType="newPassword"
           returnKeyType="done"

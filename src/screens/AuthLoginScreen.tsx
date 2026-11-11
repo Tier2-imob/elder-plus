@@ -2,6 +2,8 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
+import { PasswordInput } from "@/components/PasswordInput";
+
 export function AuthLoginScreen({
   topInset = 0,
   onSubmit,
@@ -89,14 +91,12 @@ export function AuthLoginScreen({
         />
 
         <Text className="font-hanken-medium text-navy text-xs mb-2 mt-5">Sua senha</Text>
-        <TextInput
+        <PasswordInput
           ref={passwordRef}
           value={password}
           onChangeText={setPassword}
           placeholder="Sua senha"
           placeholderTextColor="#6B7A85"
-          secureTextEntry
-          autoCapitalize="none"
           autoComplete="current-password"
           textContentType="password"
           returnKeyType="done"
