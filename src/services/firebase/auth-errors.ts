@@ -16,6 +16,8 @@ const MESSAGES: Record<string, string> = {
   'app/terms-not-accepted':
     'Para continuar, aceite os Termos de Uso e a Política de Privacidade do Elder+.',
   'app/profile-write-failed': 'Não foi possível concluir o cadastro. Tente novamente.',
+  'app/timeout':
+    'A conexão demorou demais. Verifique sua internet e toque para tentar de novo.',
   // Entrada com Google
   'auth/account-exists-with-different-credential':
     'Já existe uma conta com este e-mail usando outro método de entrada.',

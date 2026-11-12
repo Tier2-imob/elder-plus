@@ -21,6 +21,8 @@ import { serverTimestamp } from 'firebase/firestore'
 import type { AccountRole } from '@/components/types'
 import { TERMS_VERSION } from '@/constants/constants'
 
+import { TimeoutError, withTimeout } from '@/services/with-timeout'
+
 import { auth } from './config'
 import { createProfile, getProfile, normalizeRole } from './users'
 
@@ -76,12 +78,17 @@ export async function signUp(input: {
   return cred.user
 }
 
+/** How long a sign-in network step may take before the user is told to try again. */
+const NETWORK_TIMEOUT_MS = 20_000
+/** The native Google flow includes the account picker, where the user takes their time. */
+const GOOGLE_PICKER_TIMEOUT_MS = 90_000
+
 /** Sign in with email + password. */
 export async function signIn(input: {
   email: string
   password: string
 }): Promise<UserCredential> {
-  return signInWithEmailAndPassword(auth, input.email, input.password)
+  return withTimeout(signInWithEmailAndPassword(auth, input.email, input.password), NETWORK_TIMEOUT_MS)
 }
 
 /**
@@ -112,15 +119,19 @@ export async function signInWithGoogle(
   let idToken: string | null
   try {
     // (b) Ensure Google Play Services is present (Android); always resolves true on iOS.
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
+    await withTimeout(
+      GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true }),
+      GOOGLE_PICKER_TIMEOUT_MS
+    )
     // (c) Trigger the native Google flow.
-    const response = await GoogleSignin.signIn()
+    const response = await withTimeout(GoogleSignin.signIn(), GOOGLE_PICKER_TIMEOUT_MS)
     if (!isSuccessResponse(response)) {
       // Covers the cancelled response (and any non-success shape) — treated as a user cancel.
       throw errorWithCode('app/google-cancelled', 'google-cancelled')
     }
     idToken = response.data.idToken
   } catch (error) {
+    if (error instanceof TimeoutError) throw error
     if (isErrorWithCode(error)) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
         throw errorWithCode('app/google-cancelled', 'google-cancelled')
@@ -139,10 +150,10 @@ export async function signInWithGoogle(
 
   // (d) Build a Firebase credential from the Google idToken and sign in.
   const credential = GoogleAuthProvider.credential(idToken)
-  const cred = await signInWithCredential(auth, credential)
+  const cred = await withTimeout(signInWithCredential(auth, credential), NETWORK_TIMEOUT_MS)
 
   // (e) Resolve the app profile for this uid.
-  const profile = await getProfile(cred.user.uid)
+  const profile = await withTimeout(getProfile(cred.user.uid), NETWORK_TIMEOUT_MS)
 
   if (profile) {
     // Existing user — valid for both signup and signin modes.

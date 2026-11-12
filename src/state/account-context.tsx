@@ -19,6 +19,7 @@ import {
 } from '@/services/auth-lockout';
 import type { AuthUser } from '@/services/firebase/auth';
 import * as auth from '@/services/firebase/auth';
+import { TimeoutError } from '@/services/with-timeout';
 import * as favorites from '@/services/firebase/favorites';
 import type { UserProfile } from '@/services/firebase/types';
 import * as users from '@/services/firebase/users';
@@ -213,6 +214,8 @@ export function AccountProvider({ children }: { children: ReactNode }){
         try {
             await auth.signIn(input)
         } catch (e) {
+            // A slow connection is not a wrong password: it must not count towards the lockout.
+            if (e instanceof TimeoutError) throw e
             const lockout = registerFailedAttempt(input.email)
             // If this failure triggered the block, surface the lockout error (with remaining time)
             // instead of the raw Firebase credential error.
