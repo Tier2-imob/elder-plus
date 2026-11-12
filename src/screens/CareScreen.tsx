@@ -9,12 +9,14 @@ import {
 } from '@/components/care/FamilyView'
 import { InactiveBanner } from '@/components/care/InactiveBanner'
 import { HealthView } from '@/components/care/HealthView'
+import { HealthCardModal } from '@/components/care/HealthCardModal'
 import { MedicationModal } from '@/components/care/MedicationModal'
 import { NewTaskModal } from '@/components/care/NewTaskModal'
 import { RoutineView } from '@/components/care/RoutineView'
 import type {
   FamilyMember,
-  HealthReminder,
+  HealthCard,
+  HealthCardInput,
   HealthStats,
   Medication,
   MedicationInput,
@@ -50,7 +52,12 @@ export function CareScreen({
   medsAdherence,
   medicationsLoading = false,
   medicationsError,
-  healthReminders,
+  healthCards,
+  healthCardsLoading = false,
+  healthCardsError,
+  onCreateHealthCard,
+  onUpdateHealthCard,
+  onDeleteHealthCard,
   healthStats,
   familyMembers,
   circleName,
@@ -83,7 +90,13 @@ export function CareScreen({
   medsAdherence: number | null
   medicationsLoading?: boolean
   medicationsError?: string
-  healthReminders: HealthReminder[]
+  healthCards: HealthCard[]
+  healthCardsLoading?: boolean
+  healthCardsError?: string
+  /** Create/update/delete reject on failure so the card form can show the error. */
+  onCreateHealthCard: (input: HealthCardInput) => Promise<void>
+  onUpdateHealthCard: (cardId: string, input: HealthCardInput) => Promise<void>
+  onDeleteHealthCard: (cardId: string) => Promise<void>
   healthStats: HealthStats
   familyMembers: FamilyMember[]
   /** Assisted person's name (the circle's titular). */
@@ -135,6 +148,8 @@ export function CareScreen({
   const [newTaskOpen, setNewTaskOpen] = useState(false)
   // 'new' = create form; a Medication = edit form for it; null = closed.
   const [medicationForm, setMedicationForm] = useState<Medication | 'new' | null>(null)
+  // Same for the health plan card form.
+  const [cardForm, setCardForm] = useState<HealthCard | 'new' | null>(null)
 
   return (
     <View className="flex-1 bg-offwhite">
@@ -262,7 +277,11 @@ export function CareScreen({
             medsAdherence={medsAdherence}
             medicationsLoading={medicationsLoading}
             medicationsError={medicationsError}
-            reminders={healthReminders}
+            healthCards={healthCards}
+            healthCardsLoading={healthCardsLoading}
+            healthCardsError={healthCardsError}
+            onAddHealthCard={() => setCardForm('new')}
+            onEditHealthCard={setCardForm}
             stats={healthStats}
             tasksDone={doneIds.size}
             tasksTotal={tasks.length}
@@ -283,6 +302,18 @@ export function CareScreen({
           members={familyMembers}
           onClose={() => setNewTaskOpen(false)}
           onSubmit={onCreateTask}
+        />
+      ) : null}
+
+      {cardForm === 'new' ? (
+        <HealthCardModal cards={healthCards} onClose={() => setCardForm(null)} onSubmit={onCreateHealthCard} />
+      ) : cardForm ? (
+        <HealthCardModal
+          card={cardForm}
+          cards={healthCards}
+          onClose={() => setCardForm(null)}
+          onSubmit={(input) => onUpdateHealthCard(cardForm.id, input)}
+          onDelete={() => onDeleteHealthCard(cardForm.id)}
         />
       ) : null}
 

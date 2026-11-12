@@ -1,9 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { Pressable, Text, View } from 'react-native'
 
+import { HealthCardsSection } from './HealthCardsSection'
 import {
   LOW_STOCK_THRESHOLD,
-  type HealthReminder,
+  type HealthCard,
   type HealthStats,
   type Medication,
   type MedicationDoseState,
@@ -15,17 +16,11 @@ const DOSE_META: Record<MedicationDoseState, { label: string; color: string; bg:
   'atrasou':    { label: 'Atrasou',    color: '#B0782A', bg: 'rgba(176,120,42,0.12)' },
 }
 
-const REMINDER_META = {
-  consulta: { icon: 'local-hospital' as const, color: '#5B8DEF' },
-  exame:    { icon: 'assignment' as const,     color: '#B0782A' },
-  vacina:   { icon: 'vaccines' as const,       color: '#DD7C54' },
-}
-
 /** How many past doses the card shows. */
 const HISTORY_LIMIT = 4
 
 function SectionTitle({ children }: { children: string }) {
-  return <Text className="font-hanken-bold text-navy text-base mb-4">{children}</Text>
+  return <Text accessibilityRole="header" className="font-hanken-bold text-navy text-2xl mb-4">{children}</Text>
 }
 
 function DoseChip({ state, prefix }: { state: MedicationDoseState; prefix?: string }) {
@@ -209,7 +204,11 @@ export function HealthView({
   medsAdherence,
   medicationsLoading = false,
   medicationsError,
-  reminders,
+  healthCards,
+  healthCardsLoading = false,
+  healthCardsError,
+  onAddHealthCard,
+  onEditHealthCard,
   stats,
   tasksDone,
   tasksTotal,
@@ -224,7 +223,11 @@ export function HealthView({
   medsAdherence: number | null
   medicationsLoading?: boolean
   medicationsError?: string
-  reminders: HealthReminder[]
+  healthCards: HealthCard[]
+  healthCardsLoading?: boolean
+  healthCardsError?: string
+  onAddHealthCard: () => void
+  onEditHealthCard: (card: HealthCard) => void
   stats: HealthStats
   tasksDone: number
   tasksTotal: number
@@ -268,29 +271,17 @@ export function HealthView({
         </View>
       </View>
 
-      {/* Lembretes de saúde */}
-      <SectionTitle>Lembretes de saúde</SectionTitle>
+      {/* Cartões do plano de saúde */}
+      <SectionTitle>Cartões do plano de saúde</SectionTitle>
       <View className="mb-6">
-        {reminders.map((reminder) => {
-          const meta = REMINDER_META[reminder.kind]
-          return (
-            <View
-              key={reminder.id}
-              className="flex-row items-center gap-3 p-4 rounded-2xl border border-hairline bg-white mb-3"
-            >
-              <View
-                className="w-10 h-10 rounded-2xl items-center justify-center"
-                style={{ backgroundColor: `${meta.color}1A` }}
-              >
-                <MaterialIcons name={meta.icon} size={19} color={meta.color} />
-              </View>
-              <View className="flex-1">
-                <Text className="font-hanken-bold text-navy text-sm">{reminder.title}</Text>
-                <Text className="font-hanken text-muted text-xs mt-0.5">{reminder.detail}</Text>
-              </View>
-            </View>
-          )
-        })}
+        <HealthCardsSection
+          cards={healthCards}
+          loading={healthCardsLoading}
+          error={healthCardsError}
+          onAdd={onAddHealthCard}
+          onEdit={onEditHealthCard}
+          readOnly={readOnly}
+        />
       </View>
 
       {/* Medicamentos */}

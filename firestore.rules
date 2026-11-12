@@ -392,6 +392,19 @@ service cloud.firestore {
           || (canDeleteCircle(circleId) && !isCircleActive(circleId));
       }
 
+      // Cartões de plano de saúde. O id do documento é o número da carteirinha normalizado
+      // (numberKey), então dois cartões com o mesmo número não coexistem. Trocar o número é
+      // apagar o cartão e criar outro (o app faz isso numa transação).
+      match /healthCards/{cardId} {
+        allow read: if can(circleId, 'ver-saude');
+        allow create: if can(circleId, 'editar-saude') && isCircleActive(circleId)
+          && request.resource.data.numberKey == cardId;
+        allow update: if can(circleId, 'editar-saude') && isCircleActive(circleId)
+          && request.resource.data.numberKey == resource.data.numberKey;
+        allow delete: if (can(circleId, 'editar-saude') && isCircleActive(circleId))
+          || (canDeleteCircle(circleId) && !isCircleActive(circleId));
+      }
+
       match /medicationDoses/{doseId} {
         allow read: if can(circleId, 'ver-saude');
         // Inativo = somente leitura; apagar só na exclusão definitiva do círculo.

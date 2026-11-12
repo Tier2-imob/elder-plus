@@ -337,7 +337,7 @@ function SelfSection({ self }: { self: FamilySelf }) {
 
 function SectionTitle({ children }: { children: string }) {
   return (
-    <Text accessibilityRole="header" className="font-hanken-bold text-navy text-lg mb-3 mt-2">
+    <Text accessibilityRole="header" className="font-hanken-bold text-navy text-2xl mb-3 mt-2">
       {children}
     </Text>
   )

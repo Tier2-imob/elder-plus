@@ -149,12 +149,17 @@ export const LATE_TOLERANCE_MIN = 60
 
 export const MEDICATION_VIAS = ['oral', 'sublingual', 'injetável', 'inalatória', 'tópica', 'colírio']
 
-export type HealthReminder = {
+/** A health plan card registered for the circle's assisted person. */
+export type HealthCard = {
   id: string
-  kind: 'consulta' | 'exame' | 'vacina'
-  title: string
-  detail: string
+  operator: string
+  plan: string
+  number: string
+  code: string
+  holder: string
 }
+
+export type HealthCardInput = Omit<HealthCard, 'id'>
 
 export type HealthStats = { appointmentsDone: number; appointmentsTotal: number }
 

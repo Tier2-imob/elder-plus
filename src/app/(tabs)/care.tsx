@@ -1,7 +1,8 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { CIRCLE_ROLE_LABELS, type PermissionKey } from '@/components/care/types'
-import { APPOINTMENT_STATS, HEALTH_REMINDERS } from '@/data/care-private-data'
+import { APPOINTMENT_STATS } from '@/data/care-private-data'
+import { useHealthCards } from '@/hooks/useHealthCards'
 import { useMedications } from '@/hooks/useMedications'
 import { CareScreen } from '@/screens/CareScreen'
 import { CircleSetupScreen, type CircleSetupMode, type InvitePreview } from '@/screens/CircleSetupScreen'
@@ -117,6 +118,10 @@ export default function Care() {
     !circleLoading && circle && hasPermission(membership, 'ver-saude') ? circle.id : undefined
   )
 
+  const healthCards = useHealthCards(
+    !circleLoading && circle && hasPermission(membership, 'ver-saude') ? circle.id : undefined
+  )
+
   const circleSwitcher = {
     circles,
     activeCircleId,
@@ -168,7 +173,12 @@ export default function Care() {
       medsAdherence={meds.medsAdherence}
       medicationsLoading={meds.medicationsLoading}
       medicationsError={meds.medicationsError}
-      healthReminders={HEALTH_REMINDERS}
+      healthCards={healthCards.cards}
+      healthCardsLoading={healthCards.loading}
+      healthCardsError={healthCards.error}
+      onCreateHealthCard={healthCards.create}
+      onUpdateHealthCard={healthCards.update}
+      onDeleteHealthCard={healthCards.remove}
       healthStats={APPOINTMENT_STATS}
       // Responsible-person options: active members who can see the routine.
       familyMembers={members.filter(isAssignable).map((m) => toFamilyMember(m, membership))}

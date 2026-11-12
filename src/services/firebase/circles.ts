@@ -530,7 +530,7 @@ export async function dissolveCircle(
   me: CircleMemberDoc,
   members: CircleMemberDoc[]
 ): Promise<void> {
-  for (const name of ['tasks', 'medications', 'medicationDoses'] as const) {
+  for (const name of ['tasks', 'medications', 'medicationDoses', 'healthCards'] as const) {
     const snap = await getDocs(collection(db, 'circles', circle.id, name))
     for (let i = 0; i < snap.docs.length; i += DELETES_PER_BATCH) {
       const batch = writeBatch(db)
