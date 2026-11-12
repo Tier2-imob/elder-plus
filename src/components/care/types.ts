@@ -71,19 +71,6 @@ export const TASK_TIMES = [
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00',
 ]
 
-/** Fixed homologation week (TODO: follow the real calendar). */
-export const WEEK_DAYS = [
-  { key: 'mon', short: 'Seg', date: '12', full: 'Segunda-feira' },
-  { key: 'tue', short: 'Ter', date: '13', full: 'Terça-feira' },
-  { key: 'wed', short: 'Qua', date: '14', full: 'Quarta-feira' },
-  { key: 'thu', short: 'Qui', date: '15', full: 'Quinta-feira' },
-  { key: 'fri', short: 'Sex', date: '16', full: 'Sexta-feira' },
-  { key: 'sat', short: 'Sáb', date: '17', full: 'Sábado' },
-  { key: 'sun', short: 'Dom', date: '18', full: 'Domingo' },
-]
-
-export const TODAY_KEY = 'wed'
-
 /** One circle's entry in the Explore "next tasks" section. */
 export type NextTaskEntry = {
   circleId: string

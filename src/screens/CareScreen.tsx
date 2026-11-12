@@ -29,17 +29,11 @@ import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 type CareTab = 'rotina' | 'saude' | 'familia'
-type RoutineMode = 'today' | 'week'
 
 const TABS: { key: CareTab; label: string; icon: string }[] = [
   { key: 'rotina',  label: 'Rotina',  icon: 'event-note' },
   { key: 'saude',   label: 'Saúde',   icon: 'favorite-border' },
   { key: 'familia', label: 'Família', icon: 'group' },
-]
-
-const ROUTINE_MODES: { key: RoutineMode; label: string }[] = [
-  { key: 'today', label: 'Hoje' },
-  { key: 'week',  label: 'Semana' },
 ]
 
 // ─── Tela principal ────────────────────────────────────────────────────────────
@@ -144,7 +138,6 @@ export function CareScreen({
   const [selectedTab, setTab] = useState<CareTab>('rotina')
   // Família is always visible, so this never comes out empty.
   const tab = visibleTabs.some((t) => t.key === selectedTab) ? selectedTab : visibleTabs[0].key
-  const [routineMode, setRoutineMode] = useState<RoutineMode>('today')
   const [newTaskOpen, setNewTaskOpen] = useState(false)
   // 'new' = create form; a Medication = edit form for it; null = closed.
   const [medicationForm, setMedicationForm] = useState<Medication | 'new' | null>(null)
@@ -192,34 +185,6 @@ export function CareScreen({
             )
           })}
         </View>
-
-        {/* Sub-toggle Hoje/Semana (apenas na aba Rotina) */}
-        {tab === 'rotina' ? (
-          <View
-            className="flex-row rounded-xl p-1 mt-2.5"
-            style={{ backgroundColor: 'rgba(17,55,92,0.05)' }}
-          >
-            {ROUTINE_MODES.map(({ key, label }) => {
-              const isActive = routineMode === key
-              return (
-                <Pressable
-                  key={key}
-                  accessibilityRole="button"
-                  onPress={() => setRoutineMode(key)}
-                  className="flex-1 items-center py-2 rounded-lg active:opacity-80"
-                  style={{ backgroundColor: isActive ? '#11375C' : 'transparent' }}
-                >
-                  <Text
-                    className="font-hanken-bold text-xs"
-                    style={{ color: isActive ? '#FFFFFF' : '#6B7A85' }}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-        ) : null}
       </View>
 
       {/* Conteúdo */}
@@ -258,7 +223,6 @@ export function CareScreen({
                 </Pressable>
               ) : null}
               <RoutineView
-                mode={routineMode}
                 tasks={tasks}
                 doneIds={doneIds}
                 members={familyMembers}

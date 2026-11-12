@@ -3,8 +3,12 @@
  * (tests/unit/nearest-task.test.mjs).
  */
 
+/** Local calendar day as "YYYY-MM-DD" (same as week.ts, kept here so this file has no imports). */
+const dateKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 /** Just what the rule needs from a task; the app's Task satisfies it. */
-type TaskLike = { id: string; time: string }
+type TaskLike = { id: string; time: string; /** "YYYY-MM-DD" */ dayKey: string }
 
 /**
  * Parse a task `time` string into minutes-of-day. Two real formats exist in the codebase:
@@ -37,21 +41,29 @@ export function parseTimeToMinutes(time: string): number {
 /**
  * Pick the "nearest pending task".
  *
- * Rule: among tasks not in `doneIds`, choose the earliest by minutes-of-day that falls AT OR AFTER
- * the current minute-of-day ("now"); if none remain later today, fall back to the earliest pending
- * task overall (so a circle with pending tasks is never shown empty). Ties break by the order of
- * `tasks` (Firestore returns them by `order asc`; the sort is stable).
+ * Rule: among tasks not in `doneIds` and not on a day already past, choose the earliest by date and
+ * time that falls AT OR AFTER now; if none is left (everything remaining was earlier today), fall back
+ * to the earliest remaining one, so a circle with something still pending today is never shown empty.
+ * Pending tasks of past days are not "next" and are ignored. Ties break by the order of `tasks`
+ * (Firestore returns them by `order`; the sort is stable).
  */
 export function pickNearestPending<T extends TaskLike>(
   tasks: T[],
   doneIds: Set<string>,
   now: Date = new Date()
 ): T | null {
-  const pending = tasks.filter((t) => !doneIds.has(t.id))
-  if (pending.length === 0) return null
+  const today = dateKey(now)
+  const upcomingDays = tasks.filter((t) => !doneIds.has(t.id) && t.dayKey >= today)
+  if (upcomingDays.length === 0) return null
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
-  const byTime = [...pending].sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time))
+  const sorted = [...upcomingDays].sort(
+    (a, b) => a.dayKey.localeCompare(b.dayKey) || parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time)
+  )
 
-  return byTime.find((t) => parseTimeToMinutes(t.time) >= nowMinutes) ?? byTime[0]
+  return (
+    sorted.find(
+      (t) => t.dayKey > today || (t.dayKey === today && parseTimeToMinutes(t.time) >= nowMinutes)
+    ) ?? sorted[0]
+  )
 }

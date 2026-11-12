@@ -1,8 +1,11 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons'
+import { useMemo } from 'react'
 import { Text, View } from 'react-native'
 
+import { useToday } from '@/hooks/useToday'
+import { parseDateKey, weekDays } from '@/services/week'
+
 import { TaskCard } from './TaskCard'
-import { TODAY_KEY, WEEK_DAYS, type FamilyMember, type Task, type TaskCategory } from './types'
+import { type FamilyMember, type Task, type TaskCategory } from './types'
 
 // Tasks of a day in time order. Times are zero-padded "HH:MM", so string order is time order.
 function byDay(tasks: Task[], dayKey: string) {
@@ -22,19 +25,7 @@ type ToggleProps = {
   readOnly?: boolean
 }
 
-function EmptyDay({ label }: { label: string }) {
-  return (
-    <View className="items-center py-10 px-6">
-      <MaterialIcons name="event-available" size={48} color="#CFD7DE" />
-      <Text className="font-hanken-bold text-[#CFD7DE] text-base mt-3 text-center">
-        {label}
-      </Text>
-    </View>
-  )
-}
-
 export function RoutineView({
-  mode,
   tasks,
   doneIds,
   members,
@@ -44,7 +35,11 @@ export function RoutineView({
   onChangeCategory,
   onDelete,
   readOnly = false,
-}: ToggleProps & { mode: 'today' | 'week' }) {
+}: ToggleProps) {
+  // The current week, Monday to Sunday; it moves on by itself when the day changes.
+  const todayKey = useToday()
+  const week = useMemo(() => weekDays(parseDateKey(todayKey) ?? new Date()), [todayKey])
+
   const cardProps = (task: Task) => ({
     task,
     done: doneIds.has(task.id),
@@ -57,23 +52,11 @@ export function RoutineView({
     readOnly,
   })
 
-  if (mode === 'today') {
-    const todayTasks = byDay(tasks, TODAY_KEY)
-    if (todayTasks.length === 0) return <EmptyDay label="Nenhuma tarefa para hoje" />
-    return (
-      <View>
-        {todayTasks.map((task) => (
-          <TaskCard key={task.id} {...cardProps(task)} />
-        ))}
-      </View>
-    )
-  }
-
   return (
     <View>
-      {WEEK_DAYS.map((day) => {
+      {week.map((day) => {
         const dayTasks = byDay(tasks, day.key)
-        const isToday = day.key === TODAY_KEY
+        const isToday = day.key === todayKey
 
         return (
           <View key={day.key} className="mb-6">

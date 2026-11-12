@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,11 +12,12 @@ import {
   View,
 } from 'react-native'
 
+import { useToday } from '@/hooks/useToday'
+import { dayLabel, parseDateKey, weekDays } from '@/services/week'
+
 import { CancelButton, Chip, FieldError, FieldLabel, TimeOptions } from './TaskPickers'
 import {
   TASK_CATEGORIES,
-  TODAY_KEY,
-  WEEK_DAYS,
   type FamilyMember,
   type NewTaskInput,
   type TaskCategory,
@@ -38,7 +39,11 @@ export function NewTaskModal({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<TaskCategory>('outro')
-  const [dayKey, setDayKey] = useState(TODAY_KEY)
+  const todayKey = useToday()
+  const week = useMemo(() => weekDays(parseDateKey(todayKey) ?? new Date()), [todayKey])
+  // Starts on today; null until the user picks another day.
+  const [pickedDay, setPickedDay] = useState<string | null>(null)
+  const dayKey = pickedDay ?? todayKey
   const [time, setTime] = useState<string | undefined>(undefined)
   const [assignee, setAssignee] = useState<string | undefined>(undefined)
   const [attempted, setAttempted] = useState(false)
@@ -53,7 +58,7 @@ export function NewTaskModal({
     setAttempted(true)
     if (titleError || timeError || !time) return
 
-    const day = WEEK_DAYS.find((d) => d.key === dayKey) ?? WEEK_DAYS[0]
+    const day = week.find((d) => d.key === dayKey) ?? week[0]
     const trimmedDescription = description.trim()
 
     setSubmitting(true)
@@ -64,7 +69,7 @@ export function NewTaskModal({
         description: trimmedDescription || undefined,
         category,
         dayKey: day.key,
-        day: `${day.full}, ${day.date}`,
+        day: dayLabel(day.key),
         time,
         assigneeId: assignee,
       })
@@ -128,12 +133,12 @@ export function NewTaskModal({
 
             <FieldLabel>Dia</FieldLabel>
             <View className="flex-row flex-wrap gap-2">
-              {WEEK_DAYS.map((day) => (
+              {week.map((day) => (
                 <Chip
                   key={day.key}
                   label={`${day.short} ${day.date}`}
                   active={dayKey === day.key}
-                  onPress={() => setDayKey(day.key)}
+                  onPress={() => setPickedDay(day.key)}
                 />
               ))}
             </View>
