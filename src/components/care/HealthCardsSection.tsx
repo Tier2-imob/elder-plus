@@ -113,11 +113,6 @@ export function HealthCardsSection({
                   <Text className="font-hanken-extrabold text-white text-[20px] leading-6" numberOfLines={1}>
                     {card.operator}
                   </Text>
-                  {card.plan ? (
-                    <Text className="font-hanken text-white/80 text-[14px]" numberOfLines={1}>
-                      {card.plan}
-                    </Text>
-                  ) : null}
                 </View>
                 {readOnly ? (
                   <MaterialIcons name="health-and-safety" size={24} color="#FFFFFF" />

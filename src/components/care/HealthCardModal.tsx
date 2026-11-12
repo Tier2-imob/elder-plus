@@ -41,7 +41,6 @@ export function HealthCardModal({
 }) {
   const editing = card !== undefined
   const [operator, setOperator] = useState(card?.operator ?? '')
-  const [plan, setPlan] = useState(card?.plan ?? '')
   const [number, setNumber] = useState(card?.number ?? '')
   const [code, setCode] = useState(card?.code ?? '')
   const [holder, setHolder] = useState(card?.holder ?? '')
@@ -50,7 +49,7 @@ export function HealthCardModal({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [submitError, setSubmitError] = useState<string | undefined>(undefined)
 
-  const errors = validateHealthCard({ operator, plan, number, code, holder }, cards, card?.id)
+  const errors = validateHealthCard({ operator, number, code, holder }, cards, card?.id)
   // A duplicate is shown as soon as it is typed; the other errors wait for the first attempt.
   const duplicateNumber = errors.number?.startsWith('Já existe') ? errors.number : undefined
   const duplicateCode = errors.code
@@ -65,7 +64,7 @@ export function HealthCardModal({
     setSubmitting(true)
     setSubmitError(undefined)
     try {
-      await onSubmit({ operator: operator.trim(), plan: plan.trim(), number: number.trim(), code: code.trim(), holder: holder.trim() })
+      await onSubmit({ operator: operator.trim(), number: number.trim(), code: code.trim(), holder: holder.trim() })
       onClose()
     } catch (e) {
       console.warn('saveHealthCard failed', e)
@@ -121,16 +120,6 @@ export function HealthCardModal({
               className={`${INPUT_CLASS} ${attempted && errors.operator ? 'border-terracotta' : 'border-hairline'}`}
             />
             <FieldError message={attempted ? errors.operator : undefined} />
-
-            <FieldLabel optional>Plano</FieldLabel>
-            <TextInput
-              value={plan}
-              onChangeText={setPlan}
-              placeholder="Ex: Sênior Nacional"
-              placeholderTextColor="#6B7A85"
-              accessibilityLabel="Nome do plano (opcional)"
-              className={`${INPUT_CLASS} border-hairline`}
-            />
 
             <FieldLabel>Número da carteirinha</FieldLabel>
             <TextInput

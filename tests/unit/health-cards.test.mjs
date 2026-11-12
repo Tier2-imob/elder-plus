@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { hasErrors, normalizeKey, validateHealthCard } from '../../src/services/health-cards.ts'
 
-const card = (over = {}) => ({ operator: 'Unimed', plan: '', number: '0 123 456789', code: '', holder: '', ...over })
+const card = (over = {}) => ({ operator: 'Unimed', number: '0 123 456789', code: '', holder: '', ...over })
 const saved = [{ id: 'a', number: '0123456789', code: 'AB-12' }]
 
 test('normalizeKey ignores spaces, dashes, case and accents', () => {

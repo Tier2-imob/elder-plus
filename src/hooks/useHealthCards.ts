@@ -5,7 +5,7 @@ import * as healthCards from '@/services/firebase/health-cards'
 import type { HealthCardDoc } from '@/services/firebase/health-cards'
 
 function toCard(doc: HealthCardDoc): HealthCard {
-  return { id: doc.id, operator: doc.operator, plan: doc.plan, number: doc.number, code: doc.code, holder: doc.holder }
+  return { id: doc.id, operator: doc.operator, number: doc.number, code: doc.code, holder: doc.holder }
 }
 
 /**

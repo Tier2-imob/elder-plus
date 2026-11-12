@@ -25,7 +25,7 @@ scenario('health-cards', async () => {
   const as = (uid) => env.authenticatedContext(uid).firestore()
   const [ana, bia, cho, zed] = ['ana', 'bia', 'cho', 'zed'].map(as)
   const card = (db, id) => doc(db, 'circles', 'c1', 'healthCards', id)
-  const fields = (numberKey) => ({ operator: 'Unimed', plan: '', number: '0 123 456', code: '', holder: '', numberKey })
+  const fields = (numberKey) => ({ operator: 'Unimed', number: '0 123 456', code: '', holder: '', numberKey })
 
   await check('quem edita a saude cadastra um cartao', true, () => setDoc(card(ana, '0123456'), fields('0123456')))
   await check('o id do cartao tem de ser o numero normalizado', false, () => setDoc(card(ana, 'outro-id'), fields('0123456')))

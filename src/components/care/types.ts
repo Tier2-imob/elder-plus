@@ -153,7 +153,6 @@ export const MEDICATION_VIAS = ['oral', 'sublingual', 'injetável', 'inalatória
 export type HealthCard = {
   id: string
   operator: string
-  plan: string
   number: string
   code: string
   holder: string

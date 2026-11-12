@@ -31,7 +31,6 @@ const cardsOf = (circleId: string) => collection(db, 'circles', circleId, 'healt
 function toFields(input: HealthCardFields): HealthCardFields {
   return {
     operator: input.operator.trim(),
-    plan: input.plan.trim(),
     number: input.number.trim(),
     code: input.code.trim(),
     holder: input.holder.trim(),
@@ -46,7 +45,6 @@ export async function listHealthCards(circleId: string): Promise<HealthCardDoc[]
     return {
       id: d.id,
       operator: data.operator ?? '',
-      plan: data.plan ?? '',
       number: data.number ?? '',
       code: data.code ?? '',
       holder: data.holder ?? '',

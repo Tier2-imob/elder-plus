@@ -1,7 +1,6 @@
 /** Fields of a health plan card, as the form edits them. */
 export type HealthCardFields = {
   operator: string
-  plan: string
   number: string
   code: string
   holder: string
