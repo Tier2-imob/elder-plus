@@ -11,7 +11,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'explore', label: 'Explorar', icon: 'search' },
-  { key: 'care', label: 'Cuidados', icon: 'volunteer-activism' },
+  { key: 'care', label: 'Cuidados', icon: 'medical-services' },
   { key: 'favorites', label: 'Favoritos', icon: 'favorite' },
 ]
 
@@ -31,11 +31,11 @@ export function FloatingNav({
   return (
     <View
       className="absolute left-0 right-0 items-center"
-      style={{ bottom: bottomInset + 20 }}
+      style={{ bottom: bottomInset + 40 }}
       pointerEvents="box-none"
     >
       <View
-        className="flex-row items-center gap-1 bg-navy rounded-full px-2 py-2"
+        className="flex-row items-center gap-1.5 bg-navy rounded-full px-2.5 py-2.5"
         style={{
           shadowColor: '#11375C',
           shadowOpacity: 0.22,
@@ -53,15 +53,15 @@ export function FloatingNav({
               accessibilityLabel={item.label}
               accessibilityState={{ selected: isActive }}
               onPress={() => onPress(item.key)}
-              className="flex-row items-center gap-2 px-5 py-3 rounded-full active:opacity-80"
+              className="flex-row items-center gap-2 px-6 py-3.5 rounded-full active:opacity-80"
               style={{ backgroundColor: isActive ? '#DD7C54' : 'transparent' }}
             >
               <MaterialIcons
                 name={item.icon}
-                size={18}
+                size={22}
                 color={isActive ? '#FFFFFF' : 'rgba(255,255,255,0.5)'}
               />
-              {isActive && <Text className="font-hanken-bold text-white text-sm">{item.label}</Text>}
+              {isActive && <Text className="font-hanken-bold text-white text-base">{item.label}</Text>}
             </Pressable>
           )
         })}
