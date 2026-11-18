@@ -201,7 +201,7 @@ export function CareTasksProvider({ children }: { children: ReactNode }) {
       await tasks.createTask(circleId, {
         ...input,
         assignee: input.assigneeId ? members.find((m) => m.uid === input.assigneeId)?.name : undefined,
-        icon: TASK_CATEGORIES[input.category].icon,
+        icon: input.customCategory ? 'label' : TASK_CATEGORIES[input.category].icon,
         createdBy: { uid: membership.uid, name: createdByName },
       })
     },

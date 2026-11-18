@@ -28,6 +28,7 @@ export function toTask(doc: TaskDoc, names: Map<string, string>, now: Date = new
     assigneeId: doc.assigneeId && names.has(doc.assigneeId) ? doc.assigneeId : undefined,
     assignee: doc.assigneeId ? names.get(doc.assigneeId) : undefined,
     category: isTaskCategory(doc.category) ? doc.category : undefined,
+    customCategory: doc.customCategory?.label ? doc.customCategory : undefined,
     description: doc.description,
     createdAt: doc.createdAt ? doc.createdAt.toDate() : null,
     createdBy: doc.createdBy?.name,

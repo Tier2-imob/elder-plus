@@ -52,6 +52,8 @@ export type TaskDoc = {
   assignee?: string
   /** TaskCategory key (consulta, medicacao, ...). Absent on the initial seeded tasks. */
   category?: string
+  /** A user-made category (name + color); the task then also has category 'outro'. */
+  customCategory?: { label: string; color: string }
   /** Free-text details (optional). */
   description?: string
   /** Creation moment (server timestamp). Absent on the initial seeded tasks. */

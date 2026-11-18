@@ -14,6 +14,7 @@ import { MedicationModal } from '@/components/care/MedicationModal'
 import { NewTaskModal } from '@/components/care/NewTaskModal'
 import { RoutineView } from '@/components/care/RoutineView'
 import type {
+  CustomCategory,
   FamilyMember,
   HealthCard,
   HealthCardInput,
@@ -139,6 +140,11 @@ export function CareScreen({
   // Família is always visible, so this never comes out empty.
   const tab = visibleTabs.some((t) => t.key === selectedTab) ? selectedTab : visibleTabs[0].key
   const [newTaskOpen, setNewTaskOpen] = useState(false)
+  // The user-made categories already in use, offered again when creating a task.
+  const customCategories = tasks
+    .map((t) => t.customCategory)
+    .filter((c): c is CustomCategory => c !== undefined)
+    .filter((c, i, all) => all.findIndex((o) => o.label.toLowerCase() === c.label.toLowerCase()) === i)
   // 'new' = create form; a Medication = edit form for it; null = closed.
   const [medicationForm, setMedicationForm] = useState<Medication | 'new' | null>(null)
   // Same for the health plan card form.
@@ -264,6 +270,7 @@ export function CareScreen({
       {newTaskOpen ? (
         <NewTaskModal
           members={familyMembers}
+          customCategories={customCategories}
           onClose={() => setNewTaskOpen(false)}
           onSubmit={onCreateTask}
         />

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Text, View } from 'react-native'
 
 import { useToday } from '@/hooks/useToday'
-import { parseDateKey, weekDays } from '@/services/week'
+import { dayLabel, parseDateKey, weekDays } from '@/services/week'
 
 import { TaskCard } from './TaskCard'
 import { type FamilyMember, type Task, type TaskCategory } from './types'
@@ -52,6 +52,10 @@ export function RoutineView({
     readOnly,
   })
 
+  // Tasks on a date after this week (the calendar lets you pick any day of the year): listed below.
+  const lastDay = week[week.length - 1].key
+  const later = [...new Set(tasks.filter((t) => t.dayKey > lastDay).map((t) => t.dayKey))].sort()
+
   return (
     <View>
       {week.map((day) => {
@@ -98,6 +102,22 @@ export function RoutineView({
           </View>
         )
       })}
+
+      {later.length > 0 ? (
+        <View className="mt-2">
+          <Text accessibilityRole="header" className="font-hanken-bold text-navy text-2xl mb-3">
+            Mais adiante
+          </Text>
+          {later.map((dayKey) => (
+            <View key={dayKey} className="mb-4">
+              <Text className="font-hanken-bold text-navy text-base mb-3">{dayLabel(dayKey)}</Text>
+              {byDay(tasks, dayKey).map((task) => (
+                <TaskCard key={task.id} {...cardProps(task)} />
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   )
 }

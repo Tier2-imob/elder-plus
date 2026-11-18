@@ -71,3 +71,24 @@ export function resolveDayKey(dayKey: string, now: Date): string {
 export function msUntilMidnight(now: Date): number {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime()
 }
+
+export const MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]
+
+/** Weekday initials of a calendar whose weeks start on Monday, like the routine's week. */
+export const WEEKDAY_INITIALS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
+
+/**
+ * The cells of a month calendar (`month` is 0–11), Monday first: `null` for the blank cells before
+ * the 1st, then the day keys. The last row is not padded.
+ */
+export function monthGrid(year: number, month: number): (string | null)[] {
+  const blanks = (new Date(year, month, 1).getDay() + 6) % 7
+  const days = new Date(year, month + 1, 0).getDate()
+  return [
+    ...Array<null>(blanks).fill(null),
+    ...Array.from({ length: days }, (_, i) => dateKey(new Date(year, month, i + 1))),
+  ]
+}

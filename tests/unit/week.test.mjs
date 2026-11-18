@@ -52,3 +52,15 @@ test('msUntilMidnight counts to the next local midnight', () => {
   assert.equal(msUntilMidnight(new Date(2026, 10, 12, 23, 59, 0)), 60_000)
   assert.equal(msUntilMidnight(new Date(2026, 10, 12, 0, 0, 0)), 86_400_000)
 })
+
+test('monthGrid starts on the right weekday, Monday first', async () => {
+  const { monthGrid } = await import('../../src/services/week.ts')
+  // November 2026 starts on a Sunday: six blank cells, then 30 days.
+  const nov = monthGrid(2026, 10)
+  assert.equal(nov.slice(0, 6).every((c) => c === null), true)
+  assert.equal(nov[6], '2026-11-01')
+  assert.equal(nov.length, 6 + 30)
+  // A month that starts on a Monday has no blanks; February 2028 is a leap month.
+  assert.equal(monthGrid(2026, 5)[0], '2026-06-01')
+  assert.equal(monthGrid(2028, 1).filter(Boolean).length, 29)
+})

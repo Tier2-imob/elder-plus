@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   onSnapshot,
   orderBy,
@@ -25,6 +26,7 @@ export type NewTaskDoc = {
   day: string
   icon: string
   category: string
+  customCategory?: { label: string; color: string }
   description?: string
   /** Responsible member (uid + name at assignment time). */
   assigneeId?: string
@@ -52,6 +54,7 @@ function toTaskDoc(d: QueryDocumentSnapshot<DocumentData>): TaskDoc {
     assigneeId: data.assigneeId,
     assignee: data.assignee,
     category: data.category,
+    customCategory: data.customCategory,
     description: data.description,
     createdAt: data.createdAt ?? null,
     createdBy: data.createdBy,
@@ -94,6 +97,7 @@ export async function createTask(circleId: string, input: NewTaskDoc): Promise<T
     order,
     done: false,
     createdBy: input.createdBy,
+    ...(input.customCategory ? { customCategory: input.customCategory } : {}),
     ...(input.description ? { description: input.description } : {}),
     ...(input.assigneeId ? { assigneeId: input.assigneeId, assignee: input.assignee ?? '' } : {}),
   }
@@ -140,7 +144,8 @@ export async function updateTaskCategory(
   category: string,
   icon: string
 ): Promise<void> {
-  await updateDoc(doc(db, 'circles', circleId, 'tasks', taskId), { category, icon })
+  // A built-in category replaces a custom one, so the custom name is dropped.
+  await updateDoc(doc(db, 'circles', circleId, 'tasks', taskId), { category, icon, customCategory: deleteField() })
 }
 
 export async function deleteTask(circleId: string, taskId: string): Promise<void> {

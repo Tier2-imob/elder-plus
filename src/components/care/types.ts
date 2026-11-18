@@ -10,6 +10,12 @@ export type TaskCategory =
   | 'domestica'
   | 'outro'
 
+/** A category the user made up (the name and a color); its icon is always the generic label. */
+export type CustomCategory = { label: string; color: string }
+
+/** Colors offered for a custom category. */
+export const CUSTOM_CATEGORY_COLORS = ['#5B8DEF', '#2E9E6B', '#DD7C54', '#B0782A', '#8E5BD6', '#C0392B']
+
 export type TaskStatus = 'pendente' | 'em_andamento' | 'concluida'
 
 export type CategoryMeta = {
@@ -27,6 +33,14 @@ export const TASK_CATEGORIES: Record<TaskCategory, CategoryMeta> = {
   outro:      { label: 'Rotina',           icon: 'event-note',     color: '#11375C' },
 }
 
+/** Name, icon and color to show for a task's category, built-in or custom. */
+export function categoryMetaOf(task: { category?: TaskCategory; customCategory?: CustomCategory }): CategoryMeta {
+  if (task.customCategory) {
+    return { label: task.customCategory.label, icon: 'label', color: task.customCategory.color }
+  }
+  return TASK_CATEGORIES[task.category ?? 'outro']
+}
+
 export const STATUS_META: Record<TaskStatus, { label: string; color: string; bg: string }> = {
   pendente:     { label: 'Pendente',     color: '#B0782A', bg: 'rgba(176,120,42,0.12)' },
   em_andamento: { label: 'Em andamento', color: '#5B8DEF', bg: 'rgba(91,141,239,0.14)' },
@@ -41,6 +55,8 @@ export type Task = {
   day: string
   icon: keyof typeof MaterialIcons.glyphMap
   category?: TaskCategory
+  /** Set when the task has a user-made category; `category` is then only a fallback. */
+  customCategory?: CustomCategory
   /** uid of the responsible circle member (only while they are an active member). */
   assigneeId?: string
   /** That member's current name, for display. */
@@ -58,6 +74,8 @@ export type NewTaskInput = {
   title: string
   description?: string
   category: TaskCategory
+  /** A user-made category; when set, `category` is 'outro' and only keeps the icon family. */
+  customCategory?: CustomCategory
   dayKey: string
   day: string
   time: string

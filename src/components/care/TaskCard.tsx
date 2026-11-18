@@ -6,7 +6,7 @@ import { TaskDetailsModal } from './TaskDetailsModal'
 import { GhostButton, MemberOptions, PickerModal, TimeOptions } from './TaskPickers'
 import {
   STATUS_META,
-  TASK_CATEGORIES,
+  categoryMetaOf,
   type FamilyMember,
   type Task,
   type TaskCategory,
@@ -114,7 +114,7 @@ export function TaskCard({
     cardRef.current?.measureInWindow((x, y, width, height) => setDeleteRect({ x, y, width, height }))
   }
 
-  const category = TASK_CATEGORIES[task.category ?? 'outro']
+  const category = categoryMetaOf(task)
   const status: TaskStatus = done ? 'concluida' : (task.status ?? 'pendente')
   const statusMeta = STATUS_META[status]
 

@@ -6,6 +6,7 @@ import { CancelButton, Chip, GhostButton, MemberOptions, ModalSheet, TimeOptions
 import {
   STATUS_META,
   TASK_CATEGORIES,
+  categoryMetaOf,
   type FamilyMember,
   type Task,
   type TaskCategory,
@@ -70,7 +71,7 @@ export function TaskDetailsModal({
 }) {
   const [view, setView] = useState<'details' | 'reschedule' | 'assign' | 'category'>('details')
 
-  const category = TASK_CATEGORIES[task.category ?? 'outro']
+  const category = categoryMetaOf(task)
   const status: TaskStatus = done ? 'concluida' : (task.status ?? 'pendente')
   const statusMeta = STATUS_META[status]
   // Seeded tasks predate the createdAt/createdBy fields.
@@ -93,7 +94,7 @@ export function TaskDetailsModal({
                     key={key}
                     label={TASK_CATEGORIES[key].label}
                     color={TASK_CATEGORIES[key].color}
-                    active={(task.category ?? 'outro') === key}
+                    active={!task.customCategory && (task.category ?? 'outro') === key}
                     onPress={() => {
                       onChangeCategory(key)
                       setView('details')
