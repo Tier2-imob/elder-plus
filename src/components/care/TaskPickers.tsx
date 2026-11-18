@@ -8,9 +8,9 @@ import { TASK_TIMES, type FamilyMember } from './types'
 
 export function FieldLabel({ children, optional = false }: { children: string; optional?: boolean }) {
   return (
-    <Text className="font-hanken-medium text-navy text-xs mb-2 mt-4">
+    <Text className="font-hanken-bold text-navy text-[15px] mb-2 mt-5">
       {children}
-      {optional ? <Text className="font-hanken text-muted"> (opcional)</Text> : null}
+      {optional ? <Text className="font-hanken text-muted text-[13px]"> (opcional)</Text> : null}
     </Text>
   )
 }

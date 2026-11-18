@@ -23,7 +23,7 @@ export function DatePicker({
   const cells = monthGrid(year, month)
 
   return (
-    <View className="rounded-2xl border border-hairline p-3" style={{ backgroundColor: 'rgba(17,55,92,0.03)' }}>
+    <View className="rounded-2xl border border-hairline px-2 py-2" style={{ backgroundColor: 'rgba(17,55,92,0.03)' }}>
       <View className="flex-row items-center justify-between mb-2">
         <Pressable
           accessibilityRole="button"
@@ -31,12 +31,12 @@ export function DatePicker({
           disabled={month === 0}
           onPress={() => setMonth(month - 1)}
           hitSlop={8}
-          className="w-10 h-10 items-center justify-center rounded-full active:opacity-60"
+          className="w-9 h-9 items-center justify-center rounded-full active:opacity-60"
           style={{ opacity: month === 0 ? 0.3 : 1 }}
         >
           <MaterialIcons name="chevron-left" size={24} color="#11375C" />
         </Pressable>
-        <Text accessibilityRole="header" className="font-hanken-bold text-navy text-base">
+        <Text accessibilityRole="header" className="font-hanken-bold text-navy text-[15px]">
           {MONTH_NAMES[month]} {year}
         </Text>
         <Pressable
@@ -45,14 +45,14 @@ export function DatePicker({
           disabled={month === 11}
           onPress={() => setMonth(month + 1)}
           hitSlop={8}
-          className="w-10 h-10 items-center justify-center rounded-full active:opacity-60"
+          className="w-9 h-9 items-center justify-center rounded-full active:opacity-60"
           style={{ opacity: month === 11 ? 0.3 : 1 }}
         >
           <MaterialIcons name="chevron-right" size={24} color="#11375C" />
         </Pressable>
       </View>
 
-      <View className="flex-row mb-1">
+      <View className="flex-row mb-0.5">
         {WEEKDAY_INITIALS.map((initial, i) => (
           <Text key={i} className="flex-1 text-center font-hanken-medium text-muted text-xs">
             {initial}
@@ -62,20 +62,20 @@ export function DatePicker({
 
       <View className="flex-row flex-wrap">
         {cells.map((key, i) => {
-          if (!key) return <View key={`blank-${i}`} style={{ width: `${100 / 7}%`, height: 42 }} />
+          if (!key) return <View key={`blank-${i}`} style={{ width: `${100 / 7}%`, height: 34 }} />
           const day = Number(key.slice(8))
           const isSelected = key === selected
           const isToday = key === today
           const past = key < today
           return (
-            <View key={key} style={{ width: `${100 / 7}%`, height: 42 }} className="items-center justify-center">
+            <View key={key} style={{ width: `${100 / 7}%`, height: 34 }} className="items-center justify-center">
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${day} de ${MONTH_NAMES[month]}${isToday ? ', hoje' : ''}`}
                 accessibilityState={{ selected: isSelected, disabled: past }}
                 disabled={past}
                 onPress={() => onSelect(key)}
-                className="w-10 h-10 rounded-full items-center justify-center active:opacity-70"
+                className="w-8 h-8 rounded-full items-center justify-center active:opacity-70"
                 style={{
                   backgroundColor: isSelected ? '#11375C' : 'transparent',
                   borderWidth: isToday && !isSelected ? 1.4 : 0,
@@ -83,7 +83,7 @@ export function DatePicker({
                 }}
               >
                 <Text
-                  className="font-hanken-bold text-[15px]"
+                  className="font-hanken-bold text-[13px]"
                   style={{ color: isSelected ? '#FFFFFF' : past ? '#C5CED6' : '#11375C' }}
                 >
                   {day}

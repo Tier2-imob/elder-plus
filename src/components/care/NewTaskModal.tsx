@@ -1,10 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -71,6 +70,11 @@ export function NewTaskModal({
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | undefined>(undefined)
 
+  // The time field sits low in the form: when it is focused the keyboard would cover it, so the form
+  // scrolls it into view (and the modal makes room for the keyboard, see the KeyboardAvoidingView).
+  const scroll = useRef<ScrollView>(null)
+  const timeFieldY = useRef(0)
+
   // The custom categories to choose from: the ones in use, plus the ones made in this form.
   const customs = [...customCategories, ...createdCategories].filter(
     (c, i, all) => all.findIndex((other) => sameName(other.label) === sameName(c.label)) === i
@@ -133,14 +137,15 @@ export function NewTaskModal({
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // 'padding' on both platforms: on Android the window no longer resizes for the keyboard here.
+        behavior="padding"
         className="flex-1 items-center justify-center px-6"
         style={{ backgroundColor: 'rgba(22,40,58,0.45)' }}
       >
         <View className="w-full rounded-3xl bg-white p-5" style={{ maxHeight: '90%' }}>
           <Text className="font-hanken-extrabold text-navy text-lg mb-1">Nova tarefa</Text>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <FieldLabel>Título</FieldLabel>
             <TextInput
               value={title}
@@ -248,7 +253,9 @@ export function NewTaskModal({
             <Text className="font-hanken-bold text-navy text-[15px] mb-2">{dayLabel(dayKey)}</Text>
             <DatePicker today={todayKey} selected={dayKey} onSelect={setPickedDay} />
 
-            <FieldLabel>Horário</FieldLabel>
+            <View onLayout={(e) => (timeFieldY.current = e.nativeEvent.layout.y)}>
+              <FieldLabel>Horário</FieldLabel>
+            </View>
             <TextInput
               value={timeText}
               onChangeText={(text) => setTimeText(maskTime(text))}
@@ -256,6 +263,7 @@ export function NewTaskModal({
               placeholderTextColor="#6B7A85"
               keyboardType="number-pad"
               maxLength={5}
+              onFocus={() => setTimeout(() => scroll.current?.scrollTo({ y: timeFieldY.current, animated: true }), 250)}
               accessibilityLabel="Horário da tarefa, no formato horas e minutos"
               accessibilityHint={attempted ? timeError : undefined}
               className={`min-h-[52px] rounded-2xl border-[1.6px] ${attempted && timeError ? 'border-terracotta' : 'border-hairline'} bg-white px-4 font-hanken-medium text-[15px] text-ink`}
