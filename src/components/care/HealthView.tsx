@@ -11,9 +11,9 @@ import {
 } from './types'
 
 const DOSE_META: Record<MedicationDoseState, { label: string; color: string; bg: string }> = {
-  'tomou':      { label: 'Tomou',      color: '#388E3C', bg: 'rgba(56,142,60,0.12)' },
+  'tomou':      { label: 'Tomou',      color: '#307A34', bg: 'rgba(56,142,60,0.12)' },
   'nao-tomou':  { label: 'Não tomou',  color: '#C0392B', bg: 'rgba(192,57,43,0.12)' },
-  'atrasou':    { label: 'Atrasou',    color: '#B0782A', bg: 'rgba(176,120,42,0.12)' },
+  'atrasou':    { label: 'Atrasou',    color: '#906222', bg: 'rgba(176,120,42,0.12)' },
 }
 
 /** How many past doses the card shows. */
@@ -43,7 +43,7 @@ function shortDate(date: string) {
 function stockBadge(stock: number) {
   if (stock === 0) return { label: 'Sem estoque', color: '#C0392B', bg: 'rgba(192,57,43,0.12)' }
   if (stock <= LOW_STOCK_THRESHOLD) return { label: 'Estoque baixo', color: '#C0392B', bg: 'rgba(192,57,43,0.12)' }
-  return { label: 'Em estoque', color: '#388E3C', bg: 'rgba(56,142,60,0.12)' }
+  return { label: 'Em estoque', color: '#307A34', bg: 'rgba(56,142,60,0.12)' }
 }
 
 function MedicationCard({
@@ -97,13 +97,13 @@ function MedicationCard({
       {/* Dose + via + estoque */}
       <View className="flex-row flex-wrap items-center gap-x-4 gap-y-1 mb-2">
         <View className="flex-row items-center gap-1.5">
-          <MaterialIcons name="medication" size={15} color="#6B7A85" />
+          <MaterialIcons name="medication" size={15} color="#606E78" />
           <Text className="font-hanken-medium text-[13px]" style={{ color: '#16283A' }}>
             {medication.dose} · {medication.via}
           </Text>
         </View>
         <View className="flex-row items-center gap-1.5">
-          <MaterialIcons name="inventory-2" size={15} color={lowStock ? '#C0392B' : '#6B7A85'} />
+          <MaterialIcons name="inventory-2" size={15} color={lowStock ? '#C0392B' : '#606E78'} />
           <Text
             className="font-hanken-medium text-[13px]"
             style={{ color: lowStock ? '#C0392B' : '#16283A' }}
@@ -132,10 +132,10 @@ function MedicationCard({
               className="flex-row items-center gap-2 px-3 py-2 rounded-2xl"
               style={{ backgroundColor: 'rgba(17,55,92,0.04)' }}
             >
-              <MaterialIcons name="schedule" size={16} color={overdue ? '#DD7C54' : '#6B7A85'} />
+              <MaterialIcons name="schedule" size={16} color={overdue ? '#B14D23' : '#606E78'} />
               <Text
                 className="font-hanken-bold text-sm flex-1"
-                style={{ color: overdue ? '#DD7C54' : '#16283A' }}
+                style={{ color: overdue ? '#B14D23' : '#16283A' }}
               >
                 {time}{overdue ? ' · pendente' : ''}
               </Text>
@@ -299,7 +299,7 @@ export function HealthView({
       )}
 
       {medicationsError ? (
-        <Text className="font-hanken-medium text-terracotta text-[13px] mb-3">{medicationsError}</Text>
+        <Text className="font-hanken-medium text-terracottaDark text-[13px] mb-3">{medicationsError}</Text>
       ) : null}
 
       {medicationsLoading && medications.length === 0 ? (

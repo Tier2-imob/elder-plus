@@ -113,7 +113,7 @@ export function HealthCardModal({
               value={operator}
               onChangeText={setOperator}
               placeholder="Ex: Unimed"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               autoFocus={!editing}
               accessibilityLabel="Operadora do plano"
               accessibilityHint={attempted ? errors.operator : undefined}
@@ -126,7 +126,7 @@ export function HealthCardModal({
               value={number}
               onChangeText={setNumber}
               placeholder="Ex: 0 123 456789 00 1"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               autoCapitalize="characters"
               accessibilityLabel="Número da carteirinha"
               accessibilityHint={numberError}
@@ -139,7 +139,7 @@ export function HealthCardModal({
               value={code}
               onChangeText={setCode}
               placeholder="Ex: código de acesso ou de validação"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               autoCapitalize="characters"
               accessibilityLabel="Código do cartão (opcional)"
               accessibilityHint={codeError}
@@ -152,14 +152,14 @@ export function HealthCardModal({
               value={holder}
               onChangeText={setHolder}
               placeholder="Nome impresso no cartão"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               accessibilityLabel="Titular do cartão (opcional)"
               className={`${INPUT_CLASS} border-hairline`}
             />
           </ScrollView>
 
           {submitError ? (
-            <Text className="font-hanken-medium text-terracotta text-[13px] text-center mt-4">{submitError}</Text>
+            <Text className="font-hanken-medium text-terracottaDark text-[13px] text-center mt-4">{submitError}</Text>
           ) : null}
 
           <Pressable

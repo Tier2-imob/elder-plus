@@ -110,7 +110,7 @@ export function SignupScreen({
           value={name}
           onChangeText={setName}
           placeholder="Ex: Fernanda Ramos"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           autoFocus
           autoCapitalize="words"
           autoComplete="name"
@@ -123,7 +123,7 @@ export function SignupScreen({
           className={`min-h-[56px] rounded-2xl border-[1.6px] ${nameError ? "border-terracotta" : "border-hairline"} bg-white px-4 font-hanken-medium text-[15.5px] text-ink`}
         />
         {nameError ? (
-          <Text className="font-hanken-medium text-terracotta text-xs mt-2">{nameError}</Text>
+          <Text className="font-hanken-medium text-terracottaDark text-xs mt-2">{nameError}</Text>
         ) : (
           <Text className="font-hanken text-muted text-xs mt-2">{context.nameHint}</Text>
         )}
@@ -134,7 +134,7 @@ export function SignupScreen({
           value={email}
           onChangeText={setEmail}
           placeholder="Ex: fernanda@email.com"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -148,7 +148,7 @@ export function SignupScreen({
           accessibilityHint={emailError}
           className={`min-h-[56px] rounded-2xl border-[1.6px] ${emailError ? "border-terracotta" : "border-hairline"} bg-white px-4 font-hanken-medium text-[15.5px] text-ink`}
         />
-        {emailError ? <Text className="font-hanken-medium text-terracotta text-xs mt-2">{emailError}</Text> : null}
+        {emailError ? <Text className="font-hanken-medium text-terracottaDark text-xs mt-2">{emailError}</Text> : null}
 
         <Text className="font-hanken-medium text-navy text-xs mb-2 mt-5">Sua senha</Text>
         <PasswordInput
@@ -156,7 +156,7 @@ export function SignupScreen({
           value={password}
           onChangeText={setPassword}
           placeholder="Pelo menos 6 caracteres"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           autoComplete="new-password"
           textContentType="newPassword"
           returnKeyType="done"
@@ -167,13 +167,13 @@ export function SignupScreen({
           className={`min-h-[56px] rounded-2xl border-[1.6px] ${passwordError ? "border-terracotta" : "border-hairline"} bg-white px-4 font-hanken-medium text-[15.5px] text-ink`}
         />
         {passwordError ? (
-          <Text className="font-hanken-medium text-terracotta text-xs mt-2">{passwordError}</Text>
+          <Text className="font-hanken-medium text-terracottaDark text-xs mt-2">{passwordError}</Text>
         ) : null}
       </View>
 
       <View className="px-6 pb-7 mt-auto">
         {errorMessage ? (
-          <Text className="font-hanken-medium text-terracotta text-[13px] text-center mb-3">{errorMessage}</Text>
+          <Text className="font-hanken-medium text-terracottaDark text-[13px] text-center mb-3">{errorMessage}</Text>
         ) : null}
         <Pressable
           accessibilityRole="button"
@@ -185,11 +185,11 @@ export function SignupScreen({
             canContinue ? "bg-navy active:opacity-90" : "bg-hairline"
           }`}
         >
-          <Text className={`font-hanken-bold text-base ${canContinue ? "text-white" : "text-terracotta"}`}>Continuar</Text>
+          <Text className={`font-hanken-bold text-base ${canContinue ? "text-white" : "text-terracottaDark"}`}>Continuar</Text>
           {submitting ? (
-            <ActivityIndicator size="small" color={canContinue ? "#FFFFFF" : "#6B7A85"} />
+            <ActivityIndicator size="small" color={canContinue ? "#FFFFFF" : "#606E78"} />
           ) : (
-            <MaterialIcons name="arrow-forward" size={19} color={canContinue ? "#FFFFFF" : "#6B7A85"} />
+            <MaterialIcons name="arrow-forward" size={19} color={canContinue ? "#FFFFFF" : "#606E78"} />
           )}
         </Pressable>
 
@@ -226,12 +226,12 @@ export function SignupScreen({
             {accepted ? <MaterialIcons name="check" size={15} color="#FFFFFF" /> : null}
           </View>
           <Text className="flex-1 font-hanken text-muted text-[12px] leading-[17px]">
-            Li e aceito os <Text className="font-hanken-bold text-terracotta">Termos de Uso</Text> e a{" "}
-            <Text className="font-hanken-bold text-terracotta">Política de Privacidade</Text> do Elder+.
+            Li e aceito os <Text className="font-hanken-bold text-terracottaDark">Termos de Uso</Text> e a{" "}
+            <Text className="font-hanken-bold text-terracottaDark">Política de Privacidade</Text> do Elder+.
           </Text>
         </Pressable>
         {termsError ? (
-          <Text className="font-hanken-medium text-terracotta text-xs mt-2 px-1">{termsError}</Text>
+          <Text className="font-hanken-medium text-terracottaDark text-xs mt-2 px-1">{termsError}</Text>
         ) : null}
       </View>
     </View>

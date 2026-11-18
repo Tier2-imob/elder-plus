@@ -16,7 +16,7 @@ export function FieldLabel({ children, optional = false }: { children: string; o
 }
 
 export function FieldError({ message }: { message?: string }) {
-  return message ? <Text className="font-hanken-medium text-terracotta text-xs mt-2">{message}</Text> : null
+  return message ? <Text className="font-hanken-medium text-terracottaDark text-xs mt-2">{message}</Text> : null
 }
 
 export function Chip({ label, active, onPress, color = '#11375C' }: {
@@ -186,7 +186,7 @@ export function MemberOptions({
             <Text className="font-hanken-bold text-xs" style={{ color: '#FFFFFF' }}>{member.initials}</Text>
           </View>
           <Text className="font-hanken-bold text-sm flex-1" style={{ color: '#11375C' }}>{member.name}</Text>
-          <MaterialIcons name="chevron-right" size={18} color="#9fafbd" />
+          <MaterialIcons name="chevron-right" size={18} color="#606E78" />
         </Pressable>
       ))}
     </View>

@@ -28,7 +28,7 @@ function DetailRow({ icon, label, value, muted = false }: {
 }) {
   return (
     <View className="flex-row items-start gap-3 py-3 border-b border-hairline">
-      <MaterialIcons name={icon as never} size={18} color="#6B7A85" style={{ marginTop: 1 }} />
+      <MaterialIcons name={icon as never} size={18} color="#606E78" style={{ marginTop: 1 }} />
       <View className="flex-1">
         <Text className="font-hanken-medium text-muted text-xs mb-0.5">{label}</Text>
         <Text className={`text-[14.5px] leading-5 ${muted ? 'font-hanken text-muted' : 'font-hanken-medium text-ink'}`}>
@@ -141,7 +141,7 @@ export function TaskDetailsModal({
                     <MaterialIcons
                       name={done ? 'check' : category.icon}
                       size={24}
-                      color={done ? '#388E3C' : category.color}
+                      color={done ? '#307A34' : category.color}
                     />
                   </View>
                   <View className="flex-1 flex-row flex-wrap gap-2">
@@ -201,8 +201,8 @@ export function TaskDetailsModal({
                     borderColor: '#C8E6C9',
                   }}
                 >
-                  <MaterialIcons name="check" size={16} color="#388E3C" />
-                  <Text className="font-hanken-bold text-sm" style={{ color: '#388E3C' }}>
+                  <MaterialIcons name="check" size={16} color={done ? '#1F6B2A' : '#307A34'} />
+                  <Text className="font-hanken-bold text-sm" style={{ color: done ? '#1F6B2A' : '#307A34' }}>
                     {done ? 'Concluída' : 'Concluir'}
                   </Text>
                 </Pressable>

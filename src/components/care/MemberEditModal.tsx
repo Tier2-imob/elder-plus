@@ -103,7 +103,7 @@ export function MemberEditModal({
               value={label}
               onChangeText={setLabel}
               placeholder="Ex: Filho, Geriatra, Cuidadora"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               accessibilityLabel="Relação com a pessoa assistida (opcional)"
               className="min-h-[56px] rounded-2xl border-[1.6px] border-hairline bg-white px-4 font-hanken-medium text-base text-ink"
             />
@@ -165,7 +165,7 @@ export function MemberEditModal({
             <Text
               accessibilityRole="alert"
               accessibilityLiveRegion="assertive"
-              className="font-hanken-medium text-terracotta text-[15px] leading-[22px] text-center mt-4"
+              className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] text-center mt-4"
             >
               {error}
             </Text>

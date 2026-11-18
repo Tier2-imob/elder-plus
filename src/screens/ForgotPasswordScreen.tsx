@@ -101,7 +101,7 @@ export function ForgotPasswordScreen({
                 <Text
                   accessibilityRole="alert"
                   accessibilityLiveRegion="assertive"
-                  className="font-hanken-medium text-terracotta text-[15px] leading-[22px] text-center mt-5"
+                  className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] text-center mt-5"
                 >
                   {errorMessage}
                 </Text>
@@ -146,7 +146,7 @@ export function ForgotPasswordScreen({
                 value={email}
                 onChangeText={setEmail}
                 placeholder="Ex: fernanda@email.com"
-                placeholderTextColor="#6B7A85"
+                placeholderTextColor="#606E78"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -162,7 +162,7 @@ export function ForgotPasswordScreen({
                 } bg-white px-4 font-hanken-medium text-[17px] text-ink`}
               />
               {attempted && emailError ? (
-                <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracotta text-sm leading-5 mt-2">
+                <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracottaDark text-sm leading-5 mt-2">
                   {emailError}
                 </Text>
               ) : null}
@@ -171,7 +171,7 @@ export function ForgotPasswordScreen({
                 <Text
                   accessibilityRole="alert"
                   accessibilityLiveRegion="assertive"
-                  className="font-hanken-medium text-terracotta text-[15px] leading-[22px] text-center mt-5"
+                  className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] text-center mt-5"
                 >
                   {errorMessage}
                 </Text>

@@ -53,7 +53,7 @@ export function InactiveBanner({
         <Text
           accessibilityRole="alert"
           accessibilityLiveRegion="assertive"
-          className="font-hanken-medium text-terracotta text-[15px] leading-[22px] mt-3"
+          className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] mt-3"
         >
           {error}
         </Text>

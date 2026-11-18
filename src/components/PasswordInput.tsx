@@ -29,7 +29,7 @@ export function PasswordInput({
         hitSlop={4}
         className="absolute right-0 top-0 bottom-0 w-14 items-center justify-center active:opacity-60"
       >
-        <MaterialIcons name={visible ? 'visibility-off' : 'visibility'} size={22} color="#6B7A85" />
+        <MaterialIcons name={visible ? 'visibility-off' : 'visibility'} size={22} color="#606E78" />
       </Pressable>
     </View>
   )

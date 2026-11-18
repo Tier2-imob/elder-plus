@@ -148,7 +148,7 @@ export function TaskCard({
           <MaterialIcons
             name={done ? 'check' : category.icon}
             size={26}
-            color={done ? '#388E3C' : category.color}
+            color={done ? '#307A34' : category.color}
           />
         </View>
 
@@ -187,7 +187,7 @@ export function TaskCard({
       <Text
         className="font-hanken-extrabold text-[19px] leading-6 mb-3"
         style={{
-          color: done ? '#9fafbd' : '#11375C',
+          color: done ? '#606E78' : '#11375C',
           textDecorationLine: done ? 'line-through' : 'none',
         }}
       >
@@ -197,17 +197,17 @@ export function TaskCard({
       {/* Horário e dia */}
       <View className="flex-row items-center gap-4 mb-3">
         <View className="flex-row items-center gap-1.5">
-          <MaterialIcons name="schedule" size={16} color={done ? '#9fafbd' : '#6B7A85'} />
+          <MaterialIcons name="schedule" size={16} color={done ? '#606E78' : '#606E78'} />
           <Text
             className="font-hanken-bold text-base"
-            style={{ color: done ? '#9fafbd' : '#11375C' }}
+            style={{ color: done ? '#606E78' : '#11375C' }}
           >
             {task.time}
           </Text>
         </View>
         <View className="flex-row items-center gap-1.5">
-          <MaterialIcons name="calendar-today" size={16} color={done ? '#9fafbd' : '#6B7A85'} />
-          <Text className="font-hanken text-sm" style={{ color: done ? '#9fafbd' : '#6B7A85' }}>
+          <MaterialIcons name="calendar-today" size={16} color={done ? '#606E78' : '#606E78'} />
+          <Text className="font-hanken text-sm" style={{ color: done ? '#606E78' : '#606E78' }}>
             {task.day}
           </Text>
         </View>
@@ -216,8 +216,8 @@ export function TaskCard({
       {/* Responsável */}
       {task.assignee ? (
         <View className="flex-row items-center gap-1.5 mb-3">
-          <MaterialIcons name="person" size={15} color={done ? '#9fafbd' : category.color} />
-          <Text className="font-hanken-medium text-[13px]" style={{ color: done ? '#9fafbd' : '#16283A' }}>
+          <MaterialIcons name="person" size={15} color={done ? '#606E78' : category.color} />
+          <Text className="font-hanken-medium text-[13px]" style={{ color: done ? '#606E78' : '#16283A' }}>
             {task.assignee}
           </Text>
         </View>
@@ -237,8 +237,8 @@ export function TaskCard({
             borderColor: '#C8E6C9',
           }}
         >
-          <MaterialIcons name="check" size={16} color="#388E3C" />
-          <Text className="font-hanken-bold text-sm" style={{ color: '#388E3C' }}>
+          <MaterialIcons name="check" size={16} color={done ? '#1F6B2A' : '#307A34'} />
+          <Text className="font-hanken-bold text-sm" style={{ color: done ? '#1F6B2A' : '#307A34' }}>
             {done ? 'Concluída' : 'Concluir'}
           </Text>
         </Pressable>

@@ -88,7 +88,7 @@ function Field({
       </Text>
       {children}
       {error ? (
-        <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracotta text-sm leading-5 mt-2">
+        <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracottaDark text-sm leading-5 mt-2">
           {error}
         </Text>
       ) : null}
@@ -128,7 +128,7 @@ export function PersonFields({
             onChangeText={form.setName}
             onBlur={() => form.touch('name')}
             placeholder={namePlaceholder}
-            placeholderTextColor="#6B7A85"
+            placeholderTextColor="#606E78"
             autoCapitalize="words"
             autoFocus={autoFocusName}
             accessibilityLabel="Nome da pessoa assistida"
@@ -144,7 +144,7 @@ export function PersonFields({
           onChangeText={form.setBirthDate}
           onBlur={() => form.touch('birthDate')}
           placeholder="dd/mm/aaaa"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           keyboardType="number-pad"
           maxLength={10}
           accessibilityLabel="Data de nascimento, dia, mês e ano (opcional)"
@@ -159,7 +159,7 @@ export function PersonFields({
           onChangeText={form.setPhone}
           onBlur={() => form.touch('phone')}
           placeholder="(11) 91234-5678"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           keyboardType="phone-pad"
           autoComplete="tel"
           textContentType="telephoneNumber"

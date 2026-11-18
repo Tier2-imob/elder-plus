@@ -109,7 +109,7 @@ export function FloatingNav({
                 top: target.y,
                 height: target.height,
                 borderRadius: target.height / 2,
-                backgroundColor: '#DD7C54',
+                backgroundColor: '#B14D23',
               },
               highlightStyle,
             ]}
@@ -128,7 +128,7 @@ export function FloatingNav({
               onLayout={(event) => handleLayout(item.key, event)}
               className="flex-row items-center gap-2 px-6 py-3.5 rounded-full active:opacity-80"
               // Until the first measurement there is no highlight yet: paint the selected item itself.
-              style={{ backgroundColor: !target && isActive ? '#DD7C54' : 'transparent' }}
+              style={{ backgroundColor: !target && isActive ? '#B14D23' : 'transparent' }}
             >
               <MaterialIcons
                 name={item.icon}

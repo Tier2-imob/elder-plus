@@ -179,11 +179,11 @@ export function CareScreen({
                 <MaterialIcons
                   name={icon as never}
                   size={16}
-                  color={isActive ? '#FFFFFF' : '#6B7A85'}
+                  color={isActive ? '#FFFFFF' : '#606E78'}
                 />
                 <Text
                   className="font-hanken-bold text-xs mt-0.5"
-                  style={{ color: isActive ? '#FFFFFF' : '#6B7A85' }}
+                  style={{ color: isActive ? '#FFFFFF' : '#606E78' }}
                 >
                   {label}
                 </Text>

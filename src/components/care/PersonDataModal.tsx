@@ -77,7 +77,7 @@ export function PersonDataModal({
                 <Text
                   accessibilityRole="alert"
                   accessibilityLiveRegion="assertive"
-                  className="font-hanken-medium text-terracotta text-[15px] leading-[22px] text-center mt-4"
+                  className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] text-center mt-4"
                 >
                   {submitError}
                 </Text>

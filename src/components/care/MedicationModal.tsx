@@ -125,7 +125,7 @@ export function MedicationModal({
               value={name}
               onChangeText={setName}
               placeholder="Ex: Losartana 50mg"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               autoFocus={!editing}
               accessibilityLabel="Nome do medicamento"
               accessibilityHint={attempted ? nameError : undefined}
@@ -138,7 +138,7 @@ export function MedicationModal({
               value={principle}
               onChangeText={setPrinciple}
               placeholder="Ex: Losartana potássica"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               accessibilityLabel="Princípio ativo (opcional)"
               className={`${INPUT_CLASS} border-hairline`}
             />
@@ -148,7 +148,7 @@ export function MedicationModal({
               value={dose}
               onChangeText={setDose}
               placeholder="Ex: 1 comprimido"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               accessibilityLabel="Dose"
               accessibilityHint={attempted ? doseError : undefined}
               className={`${INPUT_CLASS} ${attempted && doseError ? 'border-terracotta' : 'border-hairline'}`}
@@ -171,7 +171,7 @@ export function MedicationModal({
               value={stock}
               onChangeText={(text) => setStock(text.replace(/[^0-9]/g, ''))}
               placeholder="Ex: 30"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               keyboardType="number-pad"
               accessibilityLabel="Quantidade em estoque"
               accessibilityHint={attempted ? stockError : undefined}
@@ -186,7 +186,7 @@ export function MedicationModal({
           </ScrollView>
 
           {submitError ? (
-            <Text className="font-hanken-medium text-terracotta text-[13px] text-center mt-4">{submitError}</Text>
+            <Text className="font-hanken-medium text-terracottaDark text-[13px] text-center mt-4">{submitError}</Text>
           ) : null}
 
           <Pressable

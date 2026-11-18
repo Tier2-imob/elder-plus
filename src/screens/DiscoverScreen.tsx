@@ -6,7 +6,7 @@ import { Logo } from '@/components/Logo'
 import { MapEmbed } from '@/components/MapEmbed'
 import { useAccount } from '@/state/account-context'
 
-const CHIP_INACTIVE = '#70879d'
+const CHIP_INACTIVE = '#596E82'
 
 type Filter = { id: string; label: string }
 const FILTERS: Filter[] = [
@@ -92,7 +92,7 @@ function ServiceCard({
             hitSlop={8}
             className="w-9 h-9 rounded-full border border-hairline bg-offwhite items-center justify-center active:opacity-70"
           >
-            <MaterialIcons name={fav ? 'favorite' : 'favorite-border'} size={17} color={fav ? '#DD7C54' : '#70879d'} />
+            <MaterialIcons name={fav ? 'favorite' : 'favorite-border'} size={17} color={fav ? '#DD7C54' : '#596E82'} />
           </Pressable>
         </View>
       </Pressable>
@@ -150,7 +150,7 @@ export function DiscoverScreen({
                   accessibilityRole="button"
                   onPress={() => setActiveFilter(filter.id)}
                   className="flex-1 items-center py-2.5 rounded-full active:opacity-70"
-                  style={{ backgroundColor: isActive ? '#DD7C54' : 'transparent', borderWidth: 1.4, borderColor: isActive ? '#DD7C54' : CHIP_INACTIVE }}
+                  style={{ backgroundColor: isActive ? '#B14D23' : 'transparent', borderWidth: 1.4, borderColor: isActive ? '#B14D23' : CHIP_INACTIVE }}
                 >
                   <Text className="font-hanken-medium text-xs text-center" style={{ color: isActive ? '#FFFFFF' : CHIP_INACTIVE }} numberOfLines={1}>
                     {filter.label}

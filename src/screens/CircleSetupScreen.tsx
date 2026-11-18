@@ -133,7 +133,7 @@ function ErrorText({ message }: { message?: string }) {
     <Text
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
-      className="font-hanken-medium text-terracotta text-[15px] leading-[22px] text-center mt-5"
+      className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] text-center mt-5"
     >
       {message}
     </Text>
@@ -217,7 +217,7 @@ function JoinForm({
           value={code}
           onChangeText={setCode}
           placeholder="ELDER-XXXX-XXXX"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           autoCapitalize="characters"
           autoCorrect={false}
           autoFocus
@@ -268,7 +268,7 @@ function JoinForm({
         onToggle={() => setAccepted((prev) => !prev)}
       />
       {attempted && !accepted ? (
-        <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracotta text-sm leading-5 mt-1 px-1">
+        <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracottaDark text-sm leading-5 mt-1 px-1">
           Para entrar, confirme a declaração acima.
         </Text>
       ) : null}
@@ -423,7 +423,7 @@ function CreateForm({
         </Text>
       </Pressable>
       {attempted && consentError ? (
-        <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracotta text-sm leading-5 mt-1 px-1">
+        <Text accessibilityLiveRegion="polite" className="font-hanken-medium text-terracottaDark text-sm leading-5 mt-1 px-1">
           {consentError}
         </Text>
       ) : null}
@@ -432,7 +432,7 @@ function CreateForm({
         <Text
           accessibilityRole="alert"
           accessibilityLiveRegion="assertive"
-          className="font-hanken-medium text-terracotta text-[15px] leading-[22px] text-center mt-5"
+          className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] text-center mt-5"
         >
           {submitError}
         </Text>

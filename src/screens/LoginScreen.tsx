@@ -105,7 +105,7 @@ export function LoginScreen({
                     {/* Full-width + simple break strategy: Android underestimates the width of the custom
                         extrabold font, wraps "Entrar" to a second line and clips it to one line's height. */}
                     <Pressable accessibilityRole='button' onPress={onLogin} className='self-stretch'>
-                        <Text textBreakStrategy='simple' className='font-hanken-extrabold text-terracotta text-lg text-center'>Já tenho conta — Entrar</Text>
+                        <Text textBreakStrategy='simple' className='font-hanken-extrabold text-terracottaDark text-lg text-center'>Já tenho conta — Entrar</Text>
                     </Pressable>
                 </View>
             </View>

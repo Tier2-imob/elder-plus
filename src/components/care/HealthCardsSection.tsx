@@ -63,7 +63,7 @@ export function HealthCardsSection({
 
   return (
     <View onLayout={handleLayout}>
-      {error ? <Text className="font-hanken-medium text-terracotta text-[13px] mb-3">{error}</Text> : null}
+      {error ? <Text className="font-hanken-medium text-terracottaDark text-[13px] mb-3">{error}</Text> : null}
 
       {width > 0 ? (
         <ScrollView

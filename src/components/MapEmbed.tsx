@@ -21,7 +21,7 @@ export function MapEmbed({
   if (!GOOGLE_MAPS_EMBED_KEY) {
     return (
       <View className="flex-1 items-center justify-center gap-2 bg-white">
-        <MaterialIcons name="map" size={26} color="#6B7A85" />
+        <MaterialIcons name="map" size={26} color="#606E78" />
         <Text className="font-hanken text-muted text-xs">Mapa indisponível</Text>
       </View>
     )

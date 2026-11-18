@@ -14,7 +14,7 @@ export type TaskCategory =
 export type CustomCategory = { label: string; color: string }
 
 /** Colors offered for a custom category. */
-export const CUSTOM_CATEGORY_COLORS = ['#5B8DEF', '#2E9E6B', '#DD7C54', '#B0782A', '#8E5BD6', '#C0392B']
+export const CUSTOM_CATEGORY_COLORS = ['#1B61E9', '#237952', '#B14D23', '#906222', '#844CD2', '#C0392B']
 
 export type TaskStatus = 'pendente' | 'em_andamento' | 'concluida'
 
@@ -25,11 +25,11 @@ export type CategoryMeta = {
 }
 
 export const TASK_CATEGORIES: Record<TaskCategory, CategoryMeta> = {
-  consulta:   { label: 'Consulta',         icon: 'local-hospital', color: '#5B8DEF' },
-  medicacao:  { label: 'Medicação',        icon: 'medication',     color: '#DD7C54' },
-  transporte: { label: 'Transporte',       icon: 'directions-car', color: '#2E9E6B' },
-  exame:      { label: 'Exame',            icon: 'assignment',     color: '#B0782A' },
-  domestica:  { label: 'Tarefa doméstica', icon: 'home',           color: '#6B7A85' },
+  consulta:   { label: 'Consulta',         icon: 'local-hospital', color: '#1B61E9' },
+  medicacao:  { label: 'Medicação',        icon: 'medication',     color: '#B14D23' },
+  transporte: { label: 'Transporte',       icon: 'directions-car', color: '#237952' },
+  exame:      { label: 'Exame',            icon: 'assignment',     color: '#906222' },
+  domestica:  { label: 'Tarefa doméstica', icon: 'home',           color: '#606E78' },
   outro:      { label: 'Rotina',           icon: 'event-note',     color: '#11375C' },
 }
 
@@ -42,9 +42,9 @@ export function categoryMetaOf(task: { category?: TaskCategory; customCategory?:
 }
 
 export const STATUS_META: Record<TaskStatus, { label: string; color: string; bg: string }> = {
-  pendente:     { label: 'Pendente',     color: '#B0782A', bg: 'rgba(176,120,42,0.12)' },
-  em_andamento: { label: 'Em andamento', color: '#5B8DEF', bg: 'rgba(91,141,239,0.14)' },
-  concluida:    { label: 'Concluída',    color: '#388E3C', bg: '#C8E6C9' },
+  pendente:     { label: 'Pendente',     color: '#906222', bg: 'rgba(176,120,42,0.12)' },
+  em_andamento: { label: 'Em andamento', color: '#1B61E9', bg: 'rgba(91,141,239,0.14)' },
+  concluida:    { label: 'Concluída',    color: '#1F6B2A', bg: '#C8E6C9' },
 }
 
 export type Task = {

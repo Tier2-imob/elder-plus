@@ -157,7 +157,7 @@ export function DocumentsScreen({
         {/* Mensagem de erro */}
         {errorMessage && (
           <View className="rounded-2xl bg-terracotta/10 px-4 py-3 mb-4">
-            <Text className="font-hanken-medium text-terracotta text-sm">{errorMessage}</Text>
+            <Text className="font-hanken-medium text-terracottaDark text-sm">{errorMessage}</Text>
           </View>
         )}
 

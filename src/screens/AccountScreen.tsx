@@ -103,7 +103,7 @@ export function AccountScreen({
                 <Text className="flex-1 font-hanken-extrabold text-navy text-[17px]">{p.title}</Text>
                 {has ? (
                   <View className="px-3 py-1 rounded-full" style={{ backgroundColor: 'rgba(56,142,60,0.12)' }}>
-                    <Text className="font-hanken-bold text-sm" style={{ color: '#388E3C' }}>
+                    <Text className="font-hanken-bold text-sm" style={{ color: '#307A34' }}>
                       Ativo
                     </Text>
                   </View>
@@ -136,7 +136,7 @@ export function AccountScreen({
             accessibilityRole={message.error ? 'alert' : undefined}
             accessibilityLiveRegion="polite"
             className="font-hanken-medium text-[15px] leading-[22px] text-center mt-2"
-            style={{ color: message.error ? '#DD7C54' : '#388E3C' }}
+            style={{ color: message.error ? '#B14D23' : '#307A34' }}
           >
             {message.text}
           </Text>

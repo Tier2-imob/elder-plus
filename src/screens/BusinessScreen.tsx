@@ -137,10 +137,10 @@ export function BusinessScreen({
         {/* Tag + distância */}
         <View className="flex-row items-center gap-2 mb-4">
           <View className="bg-terracotta/10 px-3 py-1 rounded-full">
-            <Text className="font-hanken-bold text-terracotta text-xs">{item.tag}</Text>
+            <Text className="font-hanken-bold text-terracottaDark text-xs">{item.tag}</Text>
           </View>
           <View className="flex-row items-center gap-1">
-            <MaterialIcons name="place" size={13} color="#6B7A85" />
+            <MaterialIcons name="place" size={13} color="#606E78" />
             <Text className="font-hanken text-muted text-xs">{distanceLabel}</Text>
           </View>
         </View>
@@ -180,7 +180,7 @@ export function BusinessScreen({
             value={newComment}
             onChangeText={setNewComment}
             placeholder="Conte sua experiência…"
-            placeholderTextColor="#6B7A85"
+            placeholderTextColor="#606E78"
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -199,7 +199,7 @@ export function BusinessScreen({
         >
           <Text
             className="font-hanken-bold text-base"
-            style={{ color: newRating > 0 && newComment.trim().length > 0 && !submitting ? '#FFFFFF' : '#6B7A85' }}
+            style={{ color: newRating > 0 && newComment.trim().length > 0 && !submitting ? '#FFFFFF' : '#606E78' }}
           >
             {submitting ? 'Enviando…' : 'Enviar avaliação'}
           </Text>

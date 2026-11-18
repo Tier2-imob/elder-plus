@@ -180,7 +180,7 @@ function LifecycleSection({ lifecycle }: { lifecycle: FamilyLifecycle }) {
                 value={typed}
                 onChangeText={setTyped}
                 placeholder={lifecycle.subjectName}
-                placeholderTextColor="#6B7A85"
+                placeholderTextColor="#606E78"
                 autoCapitalize="none"
                 autoCorrect={false}
                 accessibilityLabel={`Digite ${lifecycle.subjectName} para confirmar a exclusão`}
@@ -239,7 +239,7 @@ function LifecycleSection({ lifecycle }: { lifecycle: FamilyLifecycle }) {
         <Text
           accessibilityRole="alert"
           accessibilityLiveRegion="assertive"
-          className="font-hanken-medium text-terracotta text-[15px] leading-[22px] mt-4"
+          className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] mt-4"
         >
           {error}
         </Text>
@@ -280,7 +280,7 @@ function SelfSection({ self }: { self: FamilySelf }) {
           value={phone}
           onChangeText={setPhone}
           placeholder="(11) 91234-5678"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           keyboardType="phone-pad"
           autoComplete="tel"
           textContentType="telephoneNumber"
@@ -304,7 +304,7 @@ function SelfSection({ self }: { self: FamilySelf }) {
           accessibilityRole={message.error ? 'alert' : undefined}
           accessibilityLiveRegion="polite"
           className="font-hanken-medium text-[15px] leading-[22px] mt-3"
-          style={{ color: message.error ? '#DD7C54' : '#388E3C' }}
+          style={{ color: message.error ? '#B14D23' : '#307A34' }}
         >
           {message.text}
         </Text>
@@ -445,7 +445,7 @@ export function FamilyView({
 
         {personInfo?.birthDate ? (
           <View className="flex-row items-center gap-3 mt-3">
-            <MaterialIcons name="cake" size={20} color="#6B7A85" />
+            <MaterialIcons name="cake" size={20} color="#606E78" />
             <Text className="flex-1 font-hanken text-ink text-base">
               {formatBirthDate(personInfo.birthDate)}
               {ageFromBirthDate(personInfo.birthDate) !== null ? ` · ${ageFromBirthDate(personInfo.birthDate)} anos` : ''}
@@ -460,9 +460,9 @@ export function FamilyView({
             onPress={() => void Linking.openURL(`tel:${personInfo.phone}`)}
             className="min-h-[48px] flex-row items-center gap-3 mt-1 active:opacity-70"
           >
-            <MaterialIcons name="call" size={20} color="#6B7A85" />
+            <MaterialIcons name="call" size={20} color="#606E78" />
             <Text className="flex-1 font-hanken text-ink text-base">{formatPhone(personInfo.phone)}</Text>
-            <Text className="font-hanken-bold text-sm text-terracotta">Ligar</Text>
+            <Text className="font-hanken-bold text-sm text-terracottaDark">Ligar</Text>
           </Pressable>
         ) : null}
 
@@ -554,7 +554,7 @@ export function FamilyView({
         <Text
           accessibilityRole="alert"
           accessibilityLiveRegion="assertive"
-          className="font-hanken-medium text-terracotta text-[15px] leading-[22px] mb-4"
+          className="font-hanken-medium text-terracottaDark text-[15px] leading-[22px] mb-4"
         >
           {actionError}
         </Text>
@@ -665,7 +665,7 @@ export function FamilyView({
 
             {/* Último acesso */}
             <View className="flex-row items-center gap-1.5 mb-3">
-              <MaterialIcons name="history" size={16} color="#6B7A85" />
+              <MaterialIcons name="history" size={16} color="#606E78" />
               <Text className="font-hanken text-muted text-sm">Último acesso: {member.lastAccess}</Text>
             </View>
 

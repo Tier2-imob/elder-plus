@@ -349,7 +349,7 @@ export function ExploreScreen({
             {/* Wait for the first position so the map does not load twice (somewhere else, then here). */}
             {locationStatus === 'locating' && !mapCenter ? (
               <View className="flex-1 items-center justify-center bg-white" accessible accessibilityLabel="Buscando sua localização">
-                <MaterialIcons name="my-location" size={26} color="#6B7A85" />
+                <MaterialIcons name="my-location" size={26} color="#606E78" />
               </View>
             ) : (
               <MapEmbed query="Farmácia" center={mapCenter} />
@@ -372,7 +372,7 @@ export function ExploreScreen({
                   ? 'Permita a localização para ver os serviços perto de você.'
                   : 'Não conseguimos sua localização. Toque para tentar de novo.'}
               </Text>
-              <MaterialIcons name="chevron-right" size={20} color="#6B7A85" />
+              <MaterialIcons name="chevron-right" size={20} color="#606E78" />
             </Pressable>
           ) : null}
         </View>

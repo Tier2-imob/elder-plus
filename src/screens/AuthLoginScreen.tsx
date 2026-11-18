@@ -78,7 +78,7 @@ export function AuthLoginScreen({
           value={email}
           onChangeText={setEmail}
           placeholder="Ex: fernanda@email.com"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -96,7 +96,7 @@ export function AuthLoginScreen({
           value={password}
           onChangeText={setPassword}
           placeholder="Sua senha"
-          placeholderTextColor="#6B7A85"
+          placeholderTextColor="#606E78"
           autoComplete="current-password"
           textContentType="password"
           returnKeyType="done"
@@ -109,13 +109,13 @@ export function AuthLoginScreen({
           onPress={() => onForgotPassword(email.trim())}
           className="min-h-[48px] self-end justify-center px-1 mt-1 active:opacity-60"
         >
-          <Text className="font-hanken-bold text-terracotta text-[15px]">Esqueci minha senha</Text>
+          <Text className="font-hanken-bold text-terracottaDark text-[15px]">Esqueci minha senha</Text>
         </Pressable>
       </View>
 
       <View className="px-6 pb-7 mt-auto">
         {errorMessage ? (
-          <Text className="font-hanken-medium text-terracotta text-[13px] text-center mb-3">{errorMessage}</Text>
+          <Text className="font-hanken-medium text-terracottaDark text-[13px] text-center mb-3">{errorMessage}</Text>
         ) : null}
         <Pressable
           accessibilityRole="button"
@@ -126,11 +126,11 @@ export function AuthLoginScreen({
             canSubmit ? "bg-navy active:opacity-90" : "bg-hairline"
           }`}
         >
-          <Text className={`font-hanken-bold text-base ${canSubmit ? "text-white" : "text-terracotta"}`}>Entrar</Text>
+          <Text className={`font-hanken-bold text-base ${canSubmit ? "text-white" : "text-terracottaDark"}`}>Entrar</Text>
           {submitting ? (
-            <ActivityIndicator size="small" color={canSubmit ? "#FFFFFF" : "#6B7A85"} />
+            <ActivityIndicator size="small" color={canSubmit ? "#FFFFFF" : "#606E78"} />
           ) : (
-            <MaterialIcons name="arrow-forward" size={19} color={canSubmit ? "#FFFFFF" : "#6B7A85"} />
+            <MaterialIcons name="arrow-forward" size={19} color={canSubmit ? "#FFFFFF" : "#606E78"} />
           )}
         </Pressable>
 

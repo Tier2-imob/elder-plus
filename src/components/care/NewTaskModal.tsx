@@ -151,7 +151,7 @@ export function NewTaskModal({
               value={title}
               onChangeText={setTitle}
               placeholder="Ex: Consulta com a geriatra"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               autoFocus
               returnKeyType="next"
               accessibilityLabel="Título"
@@ -165,7 +165,7 @@ export function NewTaskModal({
               value={description}
               onChangeText={setDescription}
               placeholder="Detalhes, endereço, o que levar…"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               multiline
               textAlignVertical="top"
               accessibilityLabel="Descrição (opcional)"
@@ -211,7 +211,7 @@ export function NewTaskModal({
                   value={newName}
                   onChangeText={setNewName}
                   placeholder="Nome da categoria"
-                  placeholderTextColor="#6B7A85"
+                  placeholderTextColor="#606E78"
                   maxLength={CUSTOM_NAME_MAX}
                   autoFocus
                   returnKeyType="done"
@@ -260,7 +260,7 @@ export function NewTaskModal({
               value={timeText}
               onChangeText={(text) => setTimeText(maskTime(text))}
               placeholder="HH:MM  (ex: 09:30)"
-              placeholderTextColor="#6B7A85"
+              placeholderTextColor="#606E78"
               keyboardType="number-pad"
               maxLength={5}
               onFocus={() => setTimeout(() => scroll.current?.scrollTo({ y: timeFieldY.current, animated: true }), 250)}
@@ -285,7 +285,7 @@ export function NewTaskModal({
           </ScrollView>
 
           {submitError ? (
-            <Text className="font-hanken-medium text-terracotta text-[13px] text-center mt-4">{submitError}</Text>
+            <Text className="font-hanken-medium text-terracottaDark text-[13px] text-center mt-4">{submitError}</Text>
           ) : null}
 
           <Pressable
