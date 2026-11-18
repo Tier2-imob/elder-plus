@@ -64,8 +64,6 @@ export function NewTaskModal({
   // Starts on today; null until the user picks another day.
   const [pickedDay, setPickedDay] = useState<string | null>(null)
   const dayKey = pickedDay ?? todayKey
-  // The calendar is folded away until the date field is tapped, so it doesn't fill the form.
-  const [calendarOpen, setCalendarOpen] = useState(false)
   const [timeText, setTimeText] = useState('')
   const [assignee, setAssignee] = useState<string | undefined>(undefined)
   const [attempted, setAttempted] = useState(false)
@@ -252,29 +250,8 @@ export function NewTaskModal({
             ) : null}
 
             <FieldLabel>Dia</FieldLabel>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Dia da tarefa: ${dayLabel(dayKey)}. Toque para ${calendarOpen ? 'fechar' : 'abrir'} o calendário`}
-              accessibilityState={{ expanded: calendarOpen }}
-              onPress={() => setCalendarOpen((open) => !open)}
-              className="min-h-[52px] flex-row items-center gap-3 rounded-2xl border-[1.6px] border-hairline bg-white px-4 active:opacity-80"
-            >
-              <MaterialIcons name="calendar-today" size={20} color="#11375C" />
-              <Text className="flex-1 font-hanken-medium text-[15px] text-ink">{dayLabel(dayKey)}</Text>
-              <MaterialIcons name={calendarOpen ? 'expand-less' : 'expand-more'} size={24} color="#6B7A85" />
-            </Pressable>
-            {calendarOpen ? (
-              <View className="mt-2">
-                <DatePicker
-                  today={todayKey}
-                  selected={dayKey}
-                  onSelect={(key) => {
-                    setPickedDay(key)
-                    setCalendarOpen(false)
-                  }}
-                />
-              </View>
-            ) : null}
+            <Text className="font-hanken-bold text-navy text-[15px] mb-2">{dayLabel(dayKey)}</Text>
+            <DatePicker today={todayKey} selected={dayKey} onSelect={setPickedDay} />
 
             <View onLayout={(e) => (timeFieldY.current = e.nativeEvent.layout.y)}>
               <FieldLabel>Horário</FieldLabel>
